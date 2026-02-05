@@ -1,0 +1,9 @@
+# Django and DRF
+django>=5.2
+djangorestframework
+django-filter
+django-cors-headers
+
+# Channels (WebSocket support)
+channels>=4.0
+daphne>=4.0

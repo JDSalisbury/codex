@@ -1,0 +1,11 @@
+instead of player data, it shows OPERATOR: operator.id
+
+SAVE_DATA
+LOAD_DATA
+OPTIONS
+QUIT_GAME
+
+    -- Screen shows Operator Info: Call Sign, Rank, Level, Wins, Losses
+    OPERATOR_INFO
+    -- Rank
+    -- Call Sign
