@@ -1,0 +1,271 @@
+/* frontend/src/components/battle/FighterHUD.css */
+
+.fighter-hud {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 10;
+}
+
+/* Player HUD - Bottom Left */
+/* Order: Core info, Resource bars, HP bar (reversed) */
+.fighter-hud.player {
+  left: 20px;
+  bottom: 20px;
+  align-items: flex-start;
+  flex-direction: column-reverse;
+}
+
+/* Enemy HUD - Top Right */
+/* Order: HP bar, Resource bars, Core info (normal) */
+.fighter-hud.enemy {
+  right: 20px;
+  top: 20px;
+  align-items: flex-end;
+}
+
+/* HP Section */
+.hud-hp-section {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.fighter-hud.player .hud-hp-section {
+  flex-direction: row-reverse;
+}
+
+.fighter-hud.enemy .hud-hp-section {
+  flex-direction: row;
+}
+
+/* HP Bar - Main health bar with angled end */
+.hud-hp-bar {
+  position: relative;
+  width: 350px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #333;
+  overflow: hidden;
+}
+
+/* Player HP bar - angled on right side */
+.fighter-hud.player .hud-hp-bar {
+  clip-path: polygon(0 0, 100% 0, 90% 100%, 0 100%);
+  border-radius: 4px 0 0 4px;
+}
+
+/* Enemy HP bar - angled on left side */
+.fighter-hud.enemy .hud-hp-bar {
+  clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%);
+  border-radius: 0 4px 4px 0;
+}
+
+.hud-hp-fill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+/* Enemy HP fills from right */
+.fighter-hud.enemy .hud-hp-fill {
+  margin-left: auto;
+}
+
+.hud-hp-fill.hp-high {
+  background: linear-gradient(180deg, #4eff4e 0%, #00cc00 50%, #009900 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.hud-hp-fill.hp-medium {
+  background: linear-gradient(180deg, #ffff4e 0%, #cccc00 50%, #999900 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.hud-hp-fill.hp-low {
+  background: linear-gradient(180deg, #ff4e4e 0%, #cc0000 50%, #990000 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.hud-hp-text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px #000, -1px -1px 2px #000;
+  font-family: 'Courier New', monospace;
+}
+
+.fighter-hud.player .hud-hp-text {
+  left: 10px;
+}
+
+.fighter-hud.enemy .hud-hp-text {
+  right: 10px;
+}
+
+/* Name Tab - Attached to HP bar */
+.hud-name {
+  background: linear-gradient(180deg, #2a9d2a 0%, #1a7a1a 50%, #0d5a0d 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 15px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-shadow: 1px 1px 2px #000;
+  white-space: nowrap;
+}
+
+.fighter-hud.player .hud-name {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 20% 100%);
+  padding-left: 25px;
+}
+
+.fighter-hud.enemy .hud-name {
+  clip-path: polygon(0 0, 80% 0, 100% 100%, 0 100%);
+  padding-right: 25px;
+}
+
+.fighter-hud.enemy .hud-name {
+  background: linear-gradient(180deg, #9d2a2a 0%, #7a1a1a 50%, #5a0d0d 100%);
+}
+
+/* Resource Bars */
+.hud-resource-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 300px;
+}
+
+.fighter-hud.player .hud-resource-bars {
+  align-items: flex-start;
+}
+
+.fighter-hud.enemy .hud-resource-bars {
+  align-items: flex-end;
+}
+
+.hud-resource {
+  position: relative;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #333;
+  overflow: hidden;
+}
+
+/* Player resource bars - angled right */
+.fighter-hud.player .hud-resource {
+  width: 100%;
+  /* clip-path: polygon(0 0, 100% 0, 95% 100%, 0 100%); */
+}
+
+/* Enemy resource bars - angled left */
+.fighter-hud.enemy .hud-resource {
+  width: 100%;
+  /* clip-path: polygon(5% 0, 100% 0, 100% 100%, 0 100%); */
+}
+
+.hud-resource-fill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+/* Enemy resources fill from right */
+.fighter-hud.enemy .hud-resource-fill {
+  margin-left: auto;
+}
+
+.hud-resource.energy .hud-resource-fill {
+  background: linear-gradient(180deg, #4eaaff 0%, #0077cc 50%, #005599 100%);
+}
+
+.hud-resource.physical .hud-resource-fill {
+  background: linear-gradient(180deg, #d4a84e 0%, #b8860b 50%, #8b6508 100%);
+}
+
+.hud-resource-value {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.6rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 1px #000;
+}
+
+.fighter-hud.player .hud-resource-value {
+  left: 5px;
+}
+
+.fighter-hud.enemy .hud-resource-value {
+  right: 5px;
+}
+
+/* Core Info Badge */
+.hud-core-info {
+  display: flex;
+  gap: 8px;
+  /* margin-top: 4px; */
+}
+
+.fighter-hud.player .hud-core-info {
+  flex-direction: row;
+}
+
+.fighter-hud.enemy .hud-core-info {
+  flex-direction: row-reverse;
+}
+
+.hud-rarity,
+.hud-level,
+.hud-type {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  border-radius: 3px;
+  text-transform: uppercase;
+  border-radius: 1rem;
+}
+
+.hud-rarity.rarity-common { background: #666; color: #fff; }
+.hud-rarity.rarity-uncommon { background: #2e8b57; color: #fff; }
+.hud-rarity.rarity-rare { background: #4169e1; color: #fff; }
+.hud-rarity.rarity-legendary { background: #9932cc; color: #fff; }
+.hud-rarity.rarity-mythic {
+  background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f, #4dabf7);
+  color: #000;
+}
+
+.hud-level {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ffff;
+  color: #00ffff;
+}
+
+.fighter-hud.enemy .hud-level {
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.hud-type {
+  background: rgba(0, 255, 255, 0.2);
+  border: 1px solid #00ffff;
+  color: #00ffff;
+}
+
+.fighter-hud.enemy .hud-type {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: #ff4444;
+  color: #ff4444;
+}

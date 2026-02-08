@@ -1,0 +1,92 @@
+/* frontend/src/components/battle/ResourcePools.css */
+
+.resource-pools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 20, 40, 0.8);
+  border-radius: 8px;
+  min-width: 300px;
+}
+
+.resource-pools.enemy {
+  border: 1px solid rgba(255, 68, 68, 0.3);
+}
+
+.resource-pools.player {
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.pool {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pool-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 70px;
+}
+
+.pool-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.7rem;
+}
+
+.energy-pool .pool-icon {
+  background: rgba(0, 191, 255, 0.3);
+  color: #00bfff;
+  border: 1px solid #00bfff;
+}
+
+.physical-pool .pool-icon {
+  background: rgba(255, 140, 0, 0.3);
+  color: #ff8c00;
+  border: 1px solid #ff8c00;
+}
+
+.pool-name {
+  font-size: 0.65rem;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.pool-bar-container {
+  flex: 1;
+  height: 16px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+.pool-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+.pool-bar-fill.energy {
+  background: linear-gradient(90deg, #00bfff, #00ffff);
+}
+
+.pool-bar-fill.physical {
+  background: linear-gradient(90deg, #ff8c00, #ffa500);
+}
+
+.pool-value {
+  font-weight: bold;
+  font-size: 0.9rem;
+  min-width: 30px;
+  text-align: right;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}

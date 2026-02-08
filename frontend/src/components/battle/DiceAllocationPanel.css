@@ -1,0 +1,176 @@
+/* frontend/src/components/battle/DiceAllocationPanel.css */
+
+.dice-allocation-panel {
+  background: rgba(0, 20, 40, 0.95);
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 100%;
+}
+
+.panel-title {
+  text-align: center;
+  color: #ffd700;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.dice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dice-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid #444;
+}
+
+.dice-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dice-row .core-name {
+  color: #fff;
+  font-size: 0.8rem;
+  min-width: 60px;
+}
+
+.dice-value {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  border: 2px solid;
+}
+
+.dice-value.dhigh {
+  background: linear-gradient(135deg, #2e8b57, #228b22);
+  border-color: #00ff00;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.dice-value.dlow {
+  background: linear-gradient(135deg, #8b4513, #a0522d);
+  border-color: #cd853f;
+  color: #fff;
+}
+
+.allocation-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.alloc-btn {
+  padding: 0.35rem 0.75rem;
+  border: 2px solid;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.alloc-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alloc-btn.energy {
+  border-color: #00bfff;
+  color: #00bfff;
+}
+
+.alloc-btn.energy:hover:not(:disabled) {
+  background: rgba(0, 191, 255, 0.2);
+}
+
+.alloc-btn.energy.selected {
+  background: rgba(0, 191, 255, 0.4);
+  box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+}
+
+.alloc-btn.physical {
+  border-color: #ff8c00;
+  color: #ff8c00;
+}
+
+.alloc-btn.physical:hover:not(:disabled) {
+  background: rgba(255, 140, 0, 0.2);
+}
+
+.alloc-btn.physical.selected {
+  background: rgba(255, 140, 0, 0.4);
+  box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+}
+
+.allocation-preview {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.preview-item.energy {
+  color: #00bfff;
+}
+
+.preview-item.physical {
+  color: #ff8c00;
+}
+
+.preview-value {
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.confirm-btn {
+  width: 100%;
+  padding: 0.6rem;
+  border: 2px solid #ffd700;
+  border-radius: 6px;
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,0 +1,179 @@
+/* frontend/src/components/battle/BattleResultModal.css */
+
+.result-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.result-modal {
+  background: linear-gradient(135deg, #0a1628, #1a2a3a);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-modal.win {
+  border: 3px solid #00ff00;
+  box-shadow: 0 0 40px rgba(0, 255, 0, 0.3);
+}
+
+.result-modal.lose {
+  border: 3px solid #ff4444;
+  box-shadow: 0 0 40px rgba(255, 68, 68, 0.3);
+}
+
+.result-header {
+  margin-bottom: 2rem;
+}
+
+.result-title {
+  font-size: 3rem;
+  font-weight: bold;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 4px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.win .result-title {
+  color: #00ff00;
+  text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+}
+
+.lose .result-title {
+  color: #ff4444;
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+}
+
+.result-subtitle {
+  color: #aaa;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.rewards-section {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.rewards-section h2 {
+  color: #ffd700;
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  letter-spacing: 2px;
+}
+
+.rewards-list {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.reward-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.reward-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.reward-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+
+.reward-label {
+  font-size: 0.75rem;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.defeat-message {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.defeat-message p {
+  color: #888;
+  font-style: italic;
+  margin: 0;
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.result-btn {
+  padding: 1rem 2rem;
+  border: 2px solid;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.result-btn.primary {
+  background: rgba(0, 255, 255, 0.2);
+  border-color: #00ffff;
+  color: #00ffff;
+}
+
+.result-btn.primary:hover {
+  background: rgba(0, 255, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.result-btn.secondary {
+  background: transparent;
+  border-color: #666;
+  color: #888;
+}
+
+.result-btn.secondary:hover {
+  border-color: #888;
+  color: #aaa;
+}

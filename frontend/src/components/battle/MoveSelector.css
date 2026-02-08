@@ -1,0 +1,176 @@
+/* frontend/src/components/battle/MoveSelector.css */
+
+.move-selector {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.moves-grid-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  grid-template-rows: repeat(2, auto);
+  gap: 0.5rem;
+}
+
+.move-slot {
+  padding: 0.5rem;
+  border: 2px solid #444;
+  border-radius: 6px;
+  background: rgba(20, 20, 40, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.move-slot:hover:not(:disabled):not(.unaffordable) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.3);
+}
+
+.move-slot.energy {
+  border-color: #00bfff;
+}
+
+.move-slot.energy:hover:not(:disabled):not(.unaffordable) {
+  border-color: #00ffff;
+  box-shadow: 0 4px 12px rgba(0, 191, 255, 0.4);
+}
+
+.move-slot.physical {
+  border-color: #ff8c00;
+}
+
+.move-slot.physical:hover:not(:disabled):not(.unaffordable) {
+  border-color: #ffa500;
+  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.4);
+}
+
+.move-slot.selected {
+  border-width: 3px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.move-slot.unaffordable {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.move-slot.empty {
+  background: rgba(20, 20, 40, 0.5);
+  border-style: dashed;
+  cursor: default;
+}
+
+.empty-slot {
+  color: #666;
+  font-size: 1.5rem;
+}
+
+.move-name {
+  font-weight: bold;
+  color: #fff;
+  font-size: 0.75rem;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+}
+
+.move-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  margin-bottom: 0.1rem;
+}
+
+.move-type {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.move-type.energy {
+  background: rgba(0, 191, 255, 0.3);
+  color: #00bfff;
+}
+
+.move-type.physical {
+  background: rgba(255, 140, 0, 0.3);
+  color: #ff8c00;
+}
+
+.move-damage {
+  color: #ff6b6b;
+}
+
+.move-cost {
+  color: #ffd700;
+}
+
+.move-accuracy {
+  font-size: 0.55rem;
+  color: #aaa;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: end;
+  padding-bottom: -1.5rem;
+}
+
+.action-btn {
+  padding: 0.75rem 1rem;
+  border: 2px solid;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch-btn {
+  background: rgba(128, 0, 128, 0.3);
+  border-color: #9932cc;
+  color: #dda0dd;
+}
+
+.switch-btn:hover:not(:disabled) {
+  background: rgba(128, 0, 128, 0.5);
+  box-shadow: 0 0 15px rgba(153, 50, 204, 0.5);
+}
+
+.pass-btn {
+  background: rgba(128, 128, 128, 0.3);
+  border-color: #808080;
+  color: #c0c0c0;
+}
+
+.pass-btn:hover:not(:disabled) {
+  background: rgba(128, 128, 128, 0.5);
+  box-shadow: 0 0 15px rgba(128, 128, 128, 0.5);
+}
+
+@media (max-width: 768px) {
+  .move-selector {
+    flex-direction: column;
+  }
+
+  .moves-grid-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
