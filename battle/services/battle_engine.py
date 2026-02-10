@@ -151,7 +151,7 @@ def validate_action(battle: Battle, team_side: str, action_type: str, action_dat
     Args:
         battle: The current battle
         team_side: 'player' or 'npc'
-        action_type: 'move', 'switch', or 'pass'
+        action_type: 'move', 'switch', 'pass', or 'gain_resource'
         action_data: Additional data (move_id, new_core_index, etc.)
 
     Returns:
@@ -172,6 +172,9 @@ def validate_action(battle: Battle, team_side: str, action_type: str, action_dat
     else:
         # NPC validation happens in npc_ai
         pass
+
+    if action_type == 'gain_resource':
+        return True, ""
 
     if action_type == 'move':
         move_id = action_data.get('move_id')
@@ -261,7 +264,8 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
             damage = calculate_damage(
                 attacker_stats={'physical': attacker_stats.physical, 'energy': attacker_stats.energy},
                 defender_stats=target_core['stats'],
-                move={'dmg': move.dmg, 'dmg_type': move.dmg_type, 'accuracy': move.accuracy}
+                move={'dmg': move.dmg, 'dmg_type': move.dmg_type, 'accuracy': move.accuracy},
+                attacker_level=core.lvl
             )
 
             # Apply damage
@@ -313,7 +317,8 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
                     'defense': target_state.core.battle_info.defense,
                     'shield': target_state.core.battle_info.shield,
                 },
-                move=move
+                move=move,
+                attacker_level=attacker.get('lvl', 5)
             )
 
             target_state.current_hp = max(0, target_state.current_hp - damage['damage'])
@@ -383,12 +388,51 @@ def execute_switch(battle: Battle, team_side: str, new_index: int) -> dict:
     return result
 
 
-def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict) -> dict:
+def execute_gain_resource(battle: Battle, team_side: str) -> dict:
     """
-    Calculate damage based on stats and move.
+    Execute a gain_resource action for a team.
+    Rolls dice for the team. For NPC, auto-allocates immediately.
+    For player, returns rolls (client handles allocation separately).
 
-    Formula: base_damage * (attack_stat / defense_stat) * variance * crit_multiplier
+    Returns:
+        Result dict with action_type, success, rolls, and pools (if NPC).
     """
+    from battle.services import npc_ai
+
+    rolls = roll_dice_for_team(battle, team_side)
+
+    result = {
+        'action_type': 'gain_resource',
+        'success': True,
+        'rolls': rolls,
+    }
+
+    if team_side == 'npc':
+        # NPC auto-allocates immediately
+        npc_allocations = npc_ai.allocate_npc_dice(battle, rolls)
+        pools = allocate_dice(battle, 'npc', npc_allocations)
+        result['pools'] = pools
+
+    return result
+
+
+def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, attacker_level: int = 5) -> dict:
+    """
+    Calculate damage using Pokémon-inspired Gen V+ formula adapted for CoDEX stat ranges.
+
+    Formula:
+        level_factor = (2 * level / 5) + 2
+        stat_ratio = (attack + 5) / (defense + 5)
+        damage = (level_factor * base_damage * stat_ratio) / 3 + 2
+        damage *= uniform(0.85, 1.0)
+        crit: 6.25% chance, 1.5x
+    """
+    from battle.constants import (
+        DAMAGE_STAT_SMOOTHING, DAMAGE_DIVISOR, DAMAGE_FLAT_BONUS,
+        DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX,
+        BASE_CRITICAL_CHANCE, CRITICAL_HIT_MULTIPLIER, MIN_DAMAGE,
+    )
+
     base_damage = move.get('dmg', 0)
     dmg_type = move.get('dmg_type', 'PHYSICAL')
     accuracy = move.get('accuracy', 1.0)
@@ -409,21 +453,22 @@ def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict) -> 
     # Prevent division by zero
     defense = max(1, defense)
 
-    # Calculate damage with stat ratio
-    stat_ratio = (attack + 10) / (defense + 10)  # +10 to smooth the curve
-    damage = base_damage * stat_ratio
+    # Pokémon-inspired damage formula
+    level_factor = (2 * attacker_level / 5) + 2
+    stat_ratio = (attack + DAMAGE_STAT_SMOOTHING) / (defense + DAMAGE_STAT_SMOOTHING)
+    damage = (level_factor * base_damage * stat_ratio) / DAMAGE_DIVISOR + DAMAGE_FLAT_BONUS
 
-    # Random variance (85-115%)
-    variance = random.uniform(0.85, 1.15)
+    # Random variance (85-100%, matching Pokémon)
+    variance = random.uniform(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
     damage *= variance
 
-    # Critical hit check (10% chance, 1.5x damage)
-    critical = random.random() < 0.10
+    # Critical hit check (6.25% chance, 1.5x damage)
+    critical = random.random() < BASE_CRITICAL_CHANCE
     if critical:
-        damage *= 1.5
+        damage *= CRITICAL_HIT_MULTIPLIER
 
     # Round to integer
-    damage = max(1, int(damage))  # Minimum 1 damage on hit
+    damage = max(MIN_DAMAGE, int(damage))
 
     return {'damage': damage, 'critical': critical, 'hit': True}
 

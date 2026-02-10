@@ -25,12 +25,14 @@ BATTLE_STATUSES = [
 ACTION_TYPE_MOVE = "MOVE"
 ACTION_TYPE_SWITCH = "SWITCH"
 ACTION_TYPE_PASS = "PASS"
+ACTION_TYPE_GAIN_RESOURCE = "GAIN_RESOURCE"
 ACTION_TYPE_REACTION = "REACTION"
 
 ACTION_TYPES = [
     ACTION_TYPE_MOVE,
     ACTION_TYPE_SWITCH,
     ACTION_TYPE_PASS,
+    ACTION_TYPE_GAIN_RESOURCE,
     ACTION_TYPE_REACTION,
 ]
 
@@ -108,6 +110,22 @@ MAIL_TYPES = [
 
 # Combat Constants
 CRITICAL_HIT_MULTIPLIER = 1.5
-BASE_CRITICAL_CHANCE = 0.1  # 10%
+BASE_CRITICAL_CHANCE = 0.0625  # 6.25% — matches Pokémon Gen VI+
 MAX_ACCURACY = 1.0
 MIN_DAMAGE = 1  # Minimum damage dealt (prevents 0 damage)
+
+# Damage Formula Constants (Pokémon-inspired)
+DAMAGE_STAT_SMOOTHING = 5       # added to atk and def to prevent division extremes
+DAMAGE_DIVISOR = 3              # calibrated for CoDEX stat ranges (Pokémon uses 50)
+DAMAGE_FLAT_BONUS = 2           # minimum damage floor on hit
+DAMAGE_VARIANCE_MIN = 0.85      # random roll lower bound
+DAMAGE_VARIANCE_MAX = 1.0       # random roll upper bound (Pokémon: 85-100%)
+
+# 3d8 Resource Economy Reference
+# Each alive Core rolls 1d8 per turn; player allocates each roll to Energy or Physical pool.
+# Pools accumulate across turns. Move costs are balanced against these income rates.
+THREE_D8_MIN = 3
+THREE_D8_MAX = 24
+THREE_D8_MEAN = 13.5
+THREE_D8_PERCENTILES = {10: 7, 25: 10, 50: 13, 75: 17, 90: 19, 95: 21}
+EXPECTED_INCOME_PER_POOL = {3: 6.75, 2: 4.5, 1: 2.25}  # cores alive → avg per resource action
