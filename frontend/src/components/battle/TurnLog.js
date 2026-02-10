@@ -46,6 +46,8 @@ const TurnLog = ({ entries = [] }) => {
                     <span className="action-verb">switched to</span>
                     <span className="target">{entry.player.new_active_core}</span>
                   </>
+                ) : entry.player.action_type === 'gain_resource' ? (
+                  <span className="action-verb gain-resource">gained resources</span>
                 ) : (
                   <span className="action-verb">passed</span>
                 )}
@@ -77,6 +79,8 @@ const TurnLog = ({ entries = [] }) => {
                     <span className="action-verb">switched to</span>
                     <span className="target">{entry.enemy.new_active_core}</span>
                   </>
+                ) : entry.enemy.action_type === 'gain_resource' ? (
+                  <span className="action-verb gain-resource">gained resources</span>
                 ) : (
                   <span className="action-verb">passed</span>
                 )}

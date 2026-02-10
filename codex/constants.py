@@ -76,27 +76,27 @@ MOVE_STAT_RANGES = {
     "Common": {
         "dmg": (5, 15),
         "accuracy": (0.75, 0.95),
-        "resource_cost": (1, 3)
+        "resource_cost": (2, 4)
     },
     "Uncommon": {
         "dmg": (12, 25),
         "accuracy": (0.80, 1.0),
-        "resource_cost": (2, 4)
+        "resource_cost": (4, 6)
     },
     "Rare": {
         "dmg": (20, 40),
         "accuracy": (0.70, 1.0),
-        "resource_cost": (3, 6)
+        "resource_cost": (6, 9)
     },
     "Legendary": {
         "dmg": (35, 60),
         "accuracy": (0.65, 1.0),
-        "resource_cost": (4, 8)
+        "resource_cost": (10, 14)
     },
     "Mythic": {
         "dmg": (50, 100),
         "accuracy": (0.60, 1.0),
-        "resource_cost": (5, 10)
+        "resource_cost": (14, 20)
     }
 }
 

@@ -81,6 +81,10 @@
   color: #888;
 }
 
+.action-verb.gain-resource {
+  color: #66ffaa;
+}
+
 .move-name {
   color: #fff;
   font-weight: bold;

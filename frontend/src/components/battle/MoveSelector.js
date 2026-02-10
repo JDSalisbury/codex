@@ -10,6 +10,7 @@ const MoveSelector = ({
   onMoveSelect,
   onSwitch,
   onPass,
+  onGainResource,
   disabled = false,
 }) => {
   const canAffordMove = (move) => {
@@ -86,6 +87,13 @@ const MoveSelector = ({
       </div>
 
       <div className="action-buttons">
+        <button
+          className="action-btn gain-resource-btn"
+          onClick={onGainResource}
+          disabled={disabled}
+        >
+          GAIN RESOURCE
+        </button>
         <button
           className="action-btn switch-btn"
           onClick={onSwitch}

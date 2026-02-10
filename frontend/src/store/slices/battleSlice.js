@@ -78,12 +78,20 @@ const battleSlice = createSlice({
       }
     },
 
-    // Turn start - dice phase
+    // Turn start - free resource turn (turn 1) goes to dice phase, normal turns go to action select
     setTurnStart: (state, action) => {
-      const { turn_number, player_dice, enemy_dice } = action.payload;
+      const { turn_number, is_free_resource_turn, player_dice, enemy_dice } = action.payload;
       state.currentTurn = turn_number;
-      state.pendingDiceRolls = player_dice;
-      state.phase = 'dice_roll';
+
+      if (is_free_resource_turn) {
+        // Turn 1: free resource round — show dice allocation
+        state.pendingDiceRolls = player_dice;
+        state.phase = 'dice_roll';
+      } else {
+        // Turn 2+: normal action turn — go straight to action select
+        state.pendingDiceRolls = [];
+        state.phase = 'action_select';
+      }
 
       // Add to turn log
       state.turnLog.push({
@@ -93,7 +101,14 @@ const battleSlice = createSlice({
       });
     },
 
-    // Dice allocated - move to action selection
+    // Resource dice received (player chose gain_resource action)
+    setResourceDice: (state, action) => {
+      const { player_dice } = action.payload;
+      state.pendingDiceRolls = player_dice;
+      state.phase = 'dice_roll';
+    },
+
+    // Dice allocated - on turn 1 server will start turn 2; on turn 2+ server will send action_result
     setDiceAllocated: (state, action) => {
       const { player_pools, enemy_pools, battle_state } = action.payload;
       state.pendingDiceRolls = [];
@@ -217,6 +232,7 @@ export const {
   setBattleId,
   setBattleState,
   setTurnStart,
+  setResourceDice,
   setDiceAllocated,
   setSelectedMove,
   setActionResult,

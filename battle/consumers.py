@@ -102,7 +102,7 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             })
 
     async def handle_player_action(self, data):
-        """Process player action (move/switch/pass)."""
+        """Process player action (move/switch/pass/gain_resource)."""
         action_type = data.get('action_type')
         action_data = data.get('action_data', {})
 
@@ -123,9 +123,86 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             })
             return
 
-        # Execute player action
+        # Gain resource: roll dice, send to client, wait for allocation
+        if action_type == 'gain_resource':
+            player_dice = await self.roll_dice(battle, 'player')
+
+            battle = await self.get_battle()
+            battle.rewards['pending_player_dice'] = player_dice
+            await self.save_battle_rewards(battle)
+
+            await self.send_json({
+                'type': 'resource_dice',
+                'player_dice': player_dice,
+            })
+            return  # Wait for dice_allocation message
+
+        # Execute player action (move/switch/pass)
         player_result = await self.execute_action(battle, 'player', action_type, action_data)
 
+        # Resolve NPC action and finish the turn
+        await self.resolve_npc_and_finish_turn(battle, player_result)
+
+    async def handle_dice_allocation(self, data):
+        """Handle dice allocation from player.
+
+        Turn 1 (free resource round): apply both teams' dice, send dice_allocated, start turn 2.
+        Turn 2+ (gain_resource action): apply player dice, then resolve NPC action and finish turn.
+        """
+        allocations = data.get('allocations', [])
+
+        battle = await self.get_battle()
+        if not battle:
+            return
+
+        # Apply player allocations
+        player_pools = await self.allocate_dice(battle, 'player', allocations)
+
+        if battle.current_turn == 1:
+            # Turn 1: Free resource round — also allocate NPC dice
+            npc_rolls = battle.rewards.get('pending_npc_dice', [])
+            npc_allocations = npc_ai.allocate_npc_dice(battle, npc_rolls)
+            npc_pools = await self.allocate_dice(battle, 'npc', npc_allocations)
+
+            # Clear pending dice
+            battle = await self.get_battle()
+            if 'pending_player_dice' in battle.rewards:
+                del battle.rewards['pending_player_dice']
+            if 'pending_npc_dice' in battle.rewards:
+                del battle.rewards['pending_npc_dice']
+            await self.save_battle_rewards(battle)
+
+            # Send allocation results
+            state = await self.get_battle_state(battle)
+            await self.send_json({
+                'type': 'dice_allocated',
+                'player_pools': player_pools,
+                'enemy_pools': npc_pools,
+                'battle_state': state,
+            })
+
+            # Free round done — start turn 2
+            await self.start_turn()
+        else:
+            # Turn 2+: This is the follow-up to a gain_resource action
+            # Clear pending player dice
+            battle = await self.get_battle()
+            if 'pending_player_dice' in battle.rewards:
+                del battle.rewards['pending_player_dice']
+            await self.save_battle_rewards(battle)
+
+            # Player's gain_resource result
+            player_result = {
+                'action_type': 'gain_resource',
+                'success': True,
+                'pools': player_pools,
+            }
+
+            # Resolve NPC action and finish the turn
+            await self.resolve_npc_and_finish_turn(battle, player_result)
+
+    async def resolve_npc_and_finish_turn(self, battle, player_result):
+        """Get NPC action, execute it, check KOs/battle end, send results, start next turn."""
         # Get NPC action
         npc_action = await self.get_npc_action(battle)
 
@@ -164,42 +241,8 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
         # Start next turn
         await self.start_turn()
 
-    async def handle_dice_allocation(self, data):
-        """Handle dice allocation from player."""
-        allocations = data.get('allocations', [])
-
-        battle = await self.get_battle()
-        if not battle:
-            return
-
-        # Apply player allocations
-        player_pools = await self.allocate_dice(battle, 'player', allocations)
-
-        # Auto-allocate NPC dice
-        npc_rolls = battle.rewards.get('pending_npc_dice', [])
-        npc_allocations = npc_ai.allocate_npc_dice(battle, npc_rolls)
-        npc_pools = await self.allocate_dice(battle, 'npc', npc_allocations)
-
-        # Clear pending dice
-        battle = await self.get_battle()
-        if 'pending_player_dice' in battle.rewards:
-            del battle.rewards['pending_player_dice']
-        if 'pending_npc_dice' in battle.rewards:
-            del battle.rewards['pending_npc_dice']
-        await self.save_battle_rewards(battle)
-
-        # Send allocation results
-        state = await self.get_battle_state(battle)
-
-        await self.send_json({
-            'type': 'dice_allocated',
-            'player_pools': player_pools,
-            'enemy_pools': npc_pools,
-            'battle_state': state,
-        })
-
     async def start_turn(self):
-        """Start a new turn with dice rolls."""
+        """Start a new turn. Turn 1 is a free resource round; turn 2+ is action-based."""
         battle = await self.get_battle()
         if not battle or battle.status != 'ACTIVE':
             return
@@ -208,23 +251,31 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
         battle.current_turn += 1
         await self.save_battle(battle)
 
-        # Roll dice for both teams
-        player_dice = await self.roll_dice(battle, 'player')
-        npc_dice = await self.roll_dice(battle, 'npc')
+        if battle.current_turn == 1:
+            # Turn 1: Free resource round — roll dice for both teams
+            player_dice = await self.roll_dice(battle, 'player')
+            npc_dice = await self.roll_dice(battle, 'npc')
 
-        # Store pending dice in battle rewards for allocation
-        battle = await self.get_battle()
-        battle.rewards['pending_player_dice'] = player_dice
-        battle.rewards['pending_npc_dice'] = npc_dice
-        await self.save_battle_rewards(battle)
+            # Store pending dice for allocation
+            battle = await self.get_battle()
+            battle.rewards['pending_player_dice'] = player_dice
+            battle.rewards['pending_npc_dice'] = npc_dice
+            await self.save_battle_rewards(battle)
 
-        # Send turn start with dice
-        await self.send_json({
-            'type': 'turn_start',
-            'turn_number': battle.current_turn,
-            'player_dice': player_dice,
-            'enemy_dice': npc_dice,
-        })
+            await self.send_json({
+                'type': 'turn_start',
+                'turn_number': battle.current_turn,
+                'is_free_resource_turn': True,
+                'player_dice': player_dice,
+                'enemy_dice': npc_dice,
+            })
+        else:
+            # Turn 2+: Normal action turn — no automatic dice
+            await self.send_json({
+                'type': 'turn_start',
+                'turn_number': battle.current_turn,
+                'is_free_resource_turn': False,
+            })
 
     async def handle_ko_switches(self, battle):
         """Handle mandatory switches when active core is KO'd."""
@@ -300,6 +351,8 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             return battle_engine.execute_move(battle, team_side, action_data)
         elif action_type == 'switch':
             return battle_engine.execute_switch(battle, team_side, action_data.get('new_core_index', 0))
+        elif action_type == 'gain_resource':
+            return battle_engine.execute_gain_resource(battle, team_side)
         else:
             return {'action_type': 'pass', 'success': True}
 

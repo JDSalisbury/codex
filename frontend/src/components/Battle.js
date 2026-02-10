@@ -8,6 +8,7 @@ import {
   setConnected,
   setBattleState,
   setTurnStart,
+  setResourceDice,
   setDiceAllocated,
   setSelectedMove,
   setActionResult,
@@ -107,6 +108,7 @@ const Battle = () => {
         setConnected,
         setBattleState,
         setTurnStart,
+        setResourceDice,
         setDiceAllocated,
         setActionResult,
         setActionRejected,
@@ -143,6 +145,11 @@ const Battle = () => {
   // Handle pass
   const handlePass = () => {
     battleWebSocket.sendAction('pass', {});
+  };
+
+  // Handle gain resource
+  const handleGainResource = () => {
+    battleWebSocket.sendAction('gain_resource', {});
   };
 
   // Handle dice allocation
@@ -275,6 +282,7 @@ const Battle = () => {
                   onMoveSelect={handleMoveSelect}
                   onSwitch={handleSwitch}
                   onPass={handlePass}
+                  onGainResource={handleGainResource}
                 />
               )}
 

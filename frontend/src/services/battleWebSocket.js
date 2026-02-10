@@ -88,8 +88,8 @@ class BattleWebSocketService {
   }
 
   /**
-   * Send a player action (move, switch, pass).
-   * @param {string} actionType - 'move' | 'switch' | 'pass'
+   * Send a player action (move, switch, pass, gain_resource).
+   * @param {string} actionType - 'move' | 'switch' | 'pass' | 'gain_resource'
    * @param {object} actionData - Additional action data
    */
   sendAction(actionType, actionData = {}) {
@@ -132,6 +132,10 @@ class BattleWebSocketService {
 
       case 'turn_start':
         dispatch(actions.setTurnStart(data));
+        break;
+
+      case 'resource_dice':
+        dispatch(actions.setResourceDice(data));
         break;
 
       case 'dice_allocated':

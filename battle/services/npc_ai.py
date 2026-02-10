@@ -15,7 +15,7 @@ def choose_npc_action(battle: Battle) -> dict:
 
     Returns:
         {
-            'action_type': 'move'|'switch'|'pass',
+            'action_type': 'move'|'switch'|'pass'|'gain_resource',
             'move': {...} if action_type == 'move',
             'new_core_index': int if action_type == 'switch',
         }
@@ -51,8 +51,8 @@ def choose_npc_action(battle: Battle) -> dict:
             'move': chosen_move,
         }
     else:
-        # No affordable moves - pass
-        return {'action_type': 'pass'}
+        # No affordable moves - gain resources instead of passing
+        return {'action_type': 'gain_resource'}
 
 
 def get_affordable_moves(core: dict, team_state: dict) -> list[dict]:
