@@ -113,6 +113,7 @@ CRITICAL_HIT_MULTIPLIER = 1.5
 BASE_CRITICAL_CHANCE = 0.0625  # 6.25% — matches Pokémon Gen VI+
 MAX_ACCURACY = 1.0
 MIN_DAMAGE = 1  # Minimum damage dealt (prevents 0 damage)
+STAB_MULTIPLIER = 1.25  # Same-Type Attack Bonus when Core type matches move type identity
 
 # Damage Formula Constants (Pokémon-inspired)
 DAMAGE_STAT_SMOOTHING = 15      # added to atk and def to compress stat ratios toward 1.0

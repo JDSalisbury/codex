@@ -133,6 +133,7 @@ def create_npc_battle_team(battle: Battle, npc: NPCOperator) -> BattleTeam:
                     'accuracy': em.move.accuracy,
                     'resource_cost': em.move.resource_cost,
                     'type': em.move.type,
+                    'core_type_identity': em.move.core_type_identity,
                 }
                 for em in core.equipped_moves.all()
             ]
@@ -235,6 +236,7 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
         'damage_dealt': 0,
         'was_critical': False,
         'accuracy_check': False,
+        'stab': False,
         'move_name': '',
         'source_core': '',
         'target_core': '',
@@ -349,7 +351,9 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
                 attacker_stats={'physical': attacker_stats.physical, 'energy': attacker_stats.energy},
                 defender_stats=modified_defender_stats,
                 move={'dmg': move.dmg, 'dmg_type': move.dmg_type, 'accuracy': move.accuracy * acc_mod},
-                attacker_level=core.lvl
+                attacker_level=core.lvl,
+                attacker_type=core.type,
+                move_type_identity=move.core_type_identity,
             )
 
             # Apply damage reduction from defensive effects
@@ -369,6 +373,7 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
                 'damage_dealt': damage['damage'],
                 'was_critical': damage['critical'],
                 'accuracy_check': damage['hit'],
+                'stab': damage.get('stab', False),
                 'move_name': move.name,
                 'source_core': core.name,
                 'target_core': target_core['name'],
@@ -480,7 +485,9 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
                 attacker_stats=attacker['stats'],
                 defender_stats=modified_defender_stats,
                 move=modified_move,
-                attacker_level=attacker.get('lvl', 5)
+                attacker_level=attacker.get('lvl', 5),
+                attacker_type=attacker.get('core_type', ''),
+                move_type_identity=move.get('core_type_identity', ''),
             )
 
             # Apply damage reduction from defensive effects
@@ -498,6 +505,7 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
                 'damage_dealt': damage['damage'],
                 'was_critical': damage['critical'],
                 'accuracy_check': damage['hit'],
+                'stab': damage.get('stab', False),
                 'move_name': move['name'],
                 'source_core': attacker['name'],
                 'target_core': target_state.core.name,
@@ -785,21 +793,25 @@ def process_turn_effects(battle: Battle) -> list:
     return events
 
 
-def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, attacker_level: int = 5) -> dict:
+def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict,
+                     attacker_level: int = 5,
+                     attacker_type: str = '', move_type_identity: str = '') -> dict:
     """
     Calculate damage using Pokémon-inspired Gen V+ formula adapted for CoDEX stat ranges.
 
     Formula:
         level_factor = (2 * level / 5) + 2
-        stat_ratio = (attack + 5) / (defense + 5)
+        stat_ratio = (attack + S) / (defense + S)
         damage = (level_factor * base_damage * stat_ratio) / 3 + 2
         damage *= uniform(0.85, 1.0)
+        damage *= STAB (1.25x if core type matches move type identity)
         crit: 6.25% chance, 1.5x
     """
     from battle.constants import (
         DAMAGE_STAT_SMOOTHING, DAMAGE_DIVISOR, DAMAGE_FLAT_BONUS,
         DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX,
         BASE_CRITICAL_CHANCE, CRITICAL_HIT_MULTIPLIER, MIN_DAMAGE,
+        STAB_MULTIPLIER,
     )
 
     base_damage = move.get('dmg', 0)
@@ -809,7 +821,7 @@ def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, att
     # Accuracy check
     hit = random.random() <= accuracy
     if not hit:
-        return {'damage': 0, 'critical': False, 'hit': False}
+        return {'damage': 0, 'critical': False, 'hit': False, 'stab': False}
 
     # Get relevant stats
     if dmg_type == 'ENERGY':
@@ -831,6 +843,14 @@ def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, att
     variance = random.uniform(DAMAGE_VARIANCE_MIN, DAMAGE_VARIANCE_MAX)
     damage *= variance
 
+    # STAB: Same-Type Attack Bonus
+    stab = (
+        bool(attacker_type) and bool(move_type_identity)
+        and attacker_type == move_type_identity
+    )
+    if stab:
+        damage *= STAB_MULTIPLIER
+
     # Critical hit check (6.25% chance, 1.5x damage)
     critical = random.random() < BASE_CRITICAL_CHANCE
     if critical:
@@ -839,7 +859,7 @@ def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, att
     # Round to integer
     damage = max(MIN_DAMAGE, int(damage))
 
-    return {'damage': damage, 'critical': critical, 'hit': True}
+    return {'damage': damage, 'critical': critical, 'hit': True, 'stab': stab}
 
 
 def check_team_defeated(battle: Battle, team_side: str) -> bool:
@@ -902,6 +922,7 @@ def serialize_battle_state(battle: Battle) -> dict:
                         'accuracy': em.move.accuracy,
                         'resource_cost': em.move.resource_cost,
                         'type': em.move.type,
+                        'core_type_identity': em.move.core_type_identity,
                     }
                     for em in core.coreequippedmove_set.all()
                 ]
