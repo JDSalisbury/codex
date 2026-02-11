@@ -114,6 +114,7 @@ def create_npc_battle_team(battle: Battle, npc: NPCOperator) -> BattleTeam:
             'current_hp': core.hp,
             'max_hp': core.hp,
             'is_knocked_out': False,
+            'status_effects': [],
             'stats': {
                 'hp': core.hp,
                 'physical': core.physical,
@@ -223,7 +224,11 @@ def validate_action(battle: Battle, team_side: str, action_type: str, action_dat
 def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
     """
     Execute a move action. Returns result data.
+    Branches on Attack vs non-Attack moves (status effects).
     """
+    from battle.constants import MOVE_EFFECT_MAP
+    from battle.services import status_effects
+
     result = {
         'action_type': 'move',
         'success': False,
@@ -233,6 +238,12 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
         'move_name': '',
         'source_core': '',
         'target_core': '',
+        'effect_applied': None,
+        'effect_message': None,
+        'dodged_by': None,
+        'stunned': False,
+        'confused_self_hit': False,
+        'heal_amount': 0,
     }
 
     if team_side == 'player':
@@ -243,6 +254,45 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
         equipped = core.coreequippedmove_set.filter(move_id=move_data['move_id']).first()
         move = equipped.move
 
+        # Check if attacker is stunned
+        attacker_effects = list(active_state.status_effects or [])
+        if status_effects.check_stun(attacker_effects):
+            # Remove the stun effect and skip turn
+            active_state.status_effects = [e for e in attacker_effects if e['effect_type'] != 'stun']
+            active_state.save()
+            result.update({
+                'success': True,
+                'stunned': True,
+                'move_name': move.name,
+                'source_core': core.name,
+            })
+            return result
+
+        # Check confusion — may hit self
+        if status_effects.check_confusion(attacker_effects):
+            # Deduct resource cost
+            if move.dmg_type == 'ENERGY':
+                player_team.energy_pool -= move.resource_cost
+            else:
+                player_team.physical_pool -= move.resource_cost
+            player_team.save()
+
+            self_dmg = max(1, int(active_state.max_hp * 0.10))
+            active_state.current_hp = max(0, active_state.current_hp - self_dmg)
+            if active_state.current_hp <= 0:
+                active_state.is_knocked_out = True
+            active_state.save()
+
+            result.update({
+                'success': True,
+                'confused_self_hit': True,
+                'damage_dealt': self_dmg,
+                'move_name': move.name,
+                'source_core': core.name,
+                'target_core': core.name,
+            })
+            return result
+
         # Deduct resource cost
         if move.dmg_type == 'ENERGY':
             player_team.energy_pool -= move.resource_cost
@@ -250,30 +300,67 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
             player_team.physical_pool -= move.resource_cost
         player_team.save()
 
-        # Get attacker stats
-        attacker_stats = core.battle_info
+        # Check if this is a status effect move
+        effect_def = MOVE_EFFECT_MAP.get(move.name)
+        if effect_def and move.type != 'Attack':
+            return _apply_status_move(
+                battle, result, effect_def, move.name,
+                user_side='player', active_state=active_state, core=core
+            )
 
-        # Get NPC target
+        # Attack move — get NPC target
         npc_team = battle.rewards.get('npc_team', {})
         npc_active_idx = npc_team.get('active_core_index', 0)
         npc_cores = npc_team.get('cores', [])
         target_core = npc_cores[npc_active_idx] if npc_cores else None
 
         if target_core and not target_core.get('is_knocked_out'):
-            # Calculate damage
+            # Check defender dodge effects
+            defender_effects = target_core.get('status_effects', [])
+            dodged, dodge_name = status_effects.check_dodge(defender_effects)
+            if dodged:
+                target_core['status_effects'] = status_effects.remove_expired(defender_effects)
+                battle.rewards['npc_team'] = npc_team
+                battle.save(update_fields=['rewards'])
+                result.update({
+                    'success': True,
+                    'accuracy_check': False,
+                    'dodged_by': dodge_name,
+                    'move_name': move.name,
+                    'source_core': core.name,
+                    'target_core': target_core['name'],
+                })
+                return result
+
+            # Get attacker stats
+            attacker_stats = core.battle_info
+
+            # Get defender stat modifiers from effects
+            stat_mods = status_effects.get_stat_modifier(defender_effects)
+            modified_defender_stats = dict(target_core['stats'])
+            for stat_name, multiplier in stat_mods.items():
+                if stat_name in modified_defender_stats:
+                    modified_defender_stats[stat_name] = int(modified_defender_stats[stat_name] * multiplier)
+
+            # Get attacker accuracy modifier from debuffs
+            acc_mod = status_effects.get_accuracy_modifier(attacker_effects)
+
             damage = calculate_damage(
                 attacker_stats={'physical': attacker_stats.physical, 'energy': attacker_stats.energy},
-                defender_stats=target_core['stats'],
-                move={'dmg': move.dmg, 'dmg_type': move.dmg_type, 'accuracy': move.accuracy},
+                defender_stats=modified_defender_stats,
+                move={'dmg': move.dmg, 'dmg_type': move.dmg_type, 'accuracy': move.accuracy * acc_mod},
                 attacker_level=core.lvl
             )
 
-            # Apply damage
+            # Apply damage reduction from defensive effects
+            if damage['hit']:
+                dmg_mod = status_effects.get_damage_modifier(defender_effects)
+                damage['damage'] = max(1, int(damage['damage'] * dmg_mod))
+
             target_core['current_hp'] = max(0, target_core['current_hp'] - damage['damage'])
             if target_core['current_hp'] <= 0:
                 target_core['is_knocked_out'] = True
 
-            # Save NPC state back
             battle.rewards['npc_team'] = npc_team
             battle.save(update_fields=['rewards'])
 
@@ -300,26 +387,106 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
         if not move:
             return result
 
+        # Check if NPC attacker is stunned
+        attacker_effects = attacker.get('status_effects', [])
+        if status_effects.check_stun(attacker_effects):
+            attacker['status_effects'] = [e for e in attacker_effects if e['effect_type'] != 'stun']
+            battle.rewards['npc_team'] = npc_team
+            battle.save(update_fields=['rewards'])
+            result.update({
+                'success': True,
+                'stunned': True,
+                'move_name': move['name'],
+                'source_core': attacker['name'],
+            })
+            return result
+
+        # Check NPC confusion
+        if status_effects.check_confusion(attacker_effects):
+            if move['dmg_type'] == 'ENERGY':
+                npc_team['energy_pool'] = max(0, npc_team.get('energy_pool', 0) - move['resource_cost'])
+            else:
+                npc_team['physical_pool'] = max(0, npc_team.get('physical_pool', 0) - move['resource_cost'])
+
+            self_dmg = max(1, int(attacker['max_hp'] * 0.10))
+            attacker['current_hp'] = max(0, attacker['current_hp'] - self_dmg)
+            if attacker['current_hp'] <= 0:
+                attacker['is_knocked_out'] = True
+
+            battle.rewards['npc_team'] = npc_team
+            battle.save(update_fields=['rewards'])
+            result.update({
+                'success': True,
+                'confused_self_hit': True,
+                'damage_dealt': self_dmg,
+                'move_name': move['name'],
+                'source_core': attacker['name'],
+                'target_core': attacker['name'],
+            })
+            return result
+
         # Deduct NPC resources
         if move['dmg_type'] == 'ENERGY':
             npc_team['energy_pool'] = max(0, npc_team.get('energy_pool', 0) - move['resource_cost'])
         else:
             npc_team['physical_pool'] = max(0, npc_team.get('physical_pool', 0) - move['resource_cost'])
 
-        # Get player target
+        # Check if this is a status effect move
+        effect_def = MOVE_EFFECT_MAP.get(move['name'])
+        if effect_def and move.get('type') != 'Attack':
+            return _apply_npc_status_move(
+                battle, result, effect_def, move['name'],
+                npc_team=npc_team, attacker=attacker
+            )
+
+        # Attack move — get player target
         player_team = battle.teams.first()
         target_state = player_team.core_states.filter(position=player_team.active_core_index).first()
 
         if target_state and not target_state.is_knocked_out:
+            # Check defender dodge effects
+            defender_effects = list(target_state.status_effects or [])
+            dodged, dodge_name = status_effects.check_dodge(defender_effects)
+            if dodged:
+                target_state.status_effects = status_effects.remove_expired(defender_effects)
+                target_state.save()
+                battle.rewards['npc_team'] = npc_team
+                battle.save(update_fields=['rewards'])
+                result.update({
+                    'success': True,
+                    'accuracy_check': False,
+                    'dodged_by': dodge_name,
+                    'move_name': move['name'],
+                    'source_core': attacker['name'],
+                    'target_core': target_state.core.name,
+                })
+                return result
+
+            # Get defender stat modifiers from effects
+            stat_mods = status_effects.get_stat_modifier(defender_effects)
+            base_defense = target_state.core.battle_info.defense
+            base_shield = target_state.core.battle_info.shield
+            modified_defender_stats = {
+                'defense': int(base_defense * stat_mods.get('defense', 1.0)),
+                'shield': int(base_shield * stat_mods.get('shield', 1.0)),
+            }
+
+            # Get attacker accuracy modifier from debuffs
+            acc_mod = status_effects.get_accuracy_modifier(attacker_effects)
+            modified_move = dict(move)
+            modified_move['accuracy'] = move['accuracy'] * acc_mod
+
             damage = calculate_damage(
                 attacker_stats=attacker['stats'],
-                defender_stats={
-                    'defense': target_state.core.battle_info.defense,
-                    'shield': target_state.core.battle_info.shield,
-                },
-                move=move,
+                defender_stats=modified_defender_stats,
+                move=modified_move,
                 attacker_level=attacker.get('lvl', 5)
             )
+
+            # Apply damage reduction from defensive effects
+            if damage['hit']:
+                dmg_mod = status_effects.get_damage_modifier(defender_effects)
+                damage['damage'] = max(1, int(damage['damage'] * dmg_mod))
 
             target_state.current_hp = max(0, target_state.current_hp - damage['damage'])
             if target_state.current_hp <= 0:
@@ -342,10 +509,129 @@ def execute_move(battle: Battle, team_side: str, move_data: dict) -> dict:
     return result
 
 
+def _apply_status_move(battle, result, effect_def, move_name, user_side, active_state, core):
+    """Apply a status effect move for the player side."""
+    from battle.services import status_effects
+    import random as _random
+
+    result.update({
+        'success': True,
+        'move_name': move_name,
+        'source_core': core.name,
+    })
+
+    # Check apply chance
+    if _random.random() > effect_def.get('apply_chance', 1.0):
+        result['effect_message'] = f"{move_name} failed to take effect!"
+        return result
+
+    # Instant heal
+    if effect_def['effect_type'] == 'heal':
+        heal_amt = int(active_state.max_hp * effect_def.get('value', 0.25))
+        active_state.current_hp = min(active_state.max_hp, active_state.current_hp + heal_amt)
+        active_state.save()
+        result['heal_amount'] = heal_amt
+        result['effect_applied'] = 'heal'
+        result['effect_message'] = f"{core.name} {effect_def['message']} Restored {heal_amt} HP!"
+        return result
+
+    effect_data = {
+        'effect_type': effect_def['effect_type'],
+        'turns_remaining': effect_def.get('turns_remaining', 1),
+        'value': effect_def.get('value', 0),
+        'source_move': move_name,
+    }
+
+    if effect_def.get('target') == 'self':
+        effects = list(active_state.status_effects or [])
+        effects, msg = status_effects.apply_effect(effects, effect_data)
+        active_state.status_effects = effects
+        active_state.save()
+    else:
+        # Apply to enemy (NPC)
+        npc_team = battle.rewards.get('npc_team', {})
+        npc_active_idx = npc_team.get('active_core_index', 0)
+        npc_cores = npc_team.get('cores', [])
+        target = npc_cores[npc_active_idx] if npc_cores else None
+        if target:
+            effects = target.get('status_effects', [])
+            effects, msg = status_effects.apply_effect(effects, effect_data)
+            target['status_effects'] = effects
+            result['target_core'] = target['name']
+        battle.rewards['npc_team'] = npc_team
+        battle.save(update_fields=['rewards'])
+
+    result['effect_applied'] = effect_def['effect_type']
+    result['effect_message'] = f"{core.name} {effect_def['message']}"
+    return result
+
+
+def _apply_npc_status_move(battle, result, effect_def, move_name, npc_team, attacker):
+    """Apply a status effect move for the NPC side."""
+    from battle.services import status_effects
+    import random as _random
+
+    result.update({
+        'success': True,
+        'move_name': move_name,
+        'source_core': attacker['name'],
+    })
+
+    # Check apply chance
+    if _random.random() > effect_def.get('apply_chance', 1.0):
+        result['effect_message'] = f"{move_name} failed to take effect!"
+        battle.rewards['npc_team'] = npc_team
+        battle.save(update_fields=['rewards'])
+        return result
+
+    # Instant heal
+    if effect_def['effect_type'] == 'heal':
+        heal_amt = int(attacker['max_hp'] * effect_def.get('value', 0.25))
+        attacker['current_hp'] = min(attacker['max_hp'], attacker['current_hp'] + heal_amt)
+        battle.rewards['npc_team'] = npc_team
+        battle.save(update_fields=['rewards'])
+        result['heal_amount'] = heal_amt
+        result['effect_applied'] = 'heal'
+        result['effect_message'] = f"{attacker['name']} {effect_def['message']} Restored {heal_amt} HP!"
+        return result
+
+    effect_data = {
+        'effect_type': effect_def['effect_type'],
+        'turns_remaining': effect_def.get('turns_remaining', 1),
+        'value': effect_def.get('value', 0),
+        'source_move': move_name,
+    }
+
+    if effect_def.get('target') == 'self':
+        effects = attacker.get('status_effects', [])
+        effects, msg = status_effects.apply_effect(effects, effect_data)
+        attacker['status_effects'] = effects
+        battle.rewards['npc_team'] = npc_team
+        battle.save(update_fields=['rewards'])
+    else:
+        # Apply to player
+        player_team = battle.teams.first()
+        target_state = player_team.core_states.filter(position=player_team.active_core_index).first()
+        if target_state:
+            effects = list(target_state.status_effects or [])
+            effects, msg = status_effects.apply_effect(effects, effect_data)
+            target_state.status_effects = effects
+            target_state.save()
+            result['target_core'] = target_state.core.name
+        battle.rewards['npc_team'] = npc_team
+        battle.save(update_fields=['rewards'])
+
+    result['effect_applied'] = effect_def['effect_type']
+    result['effect_message'] = f"{attacker['name']} {effect_def['message']}"
+    return result
+
+
 def execute_switch(battle: Battle, team_side: str, new_index: int) -> dict:
     """
-    Execute a switch action.
+    Execute a switch action. Clears status effects on the outgoing core.
     """
+    from battle.services import status_effects
+
     result = {
         'action_type': 'switch',
         'success': False,
@@ -359,6 +645,11 @@ def execute_switch(battle: Battle, team_side: str, new_index: int) -> dict:
         new_state = team.core_states.filter(position=new_index).first()
 
         if new_state and not new_state.is_knocked_out:
+            # Clear effects on outgoing core
+            if old_state and old_state.status_effects:
+                old_state.status_effects = status_effects.clear_effects(old_state.status_effects)
+                old_state.save()
+
             team.active_core_index = new_index
             team.save()
 
@@ -375,6 +666,10 @@ def execute_switch(battle: Battle, team_side: str, new_index: int) -> dict:
         if 0 <= new_index < len(npc_cores):
             target = npc_cores[new_index]
             if not target.get('is_knocked_out'):
+                # Clear effects on outgoing NPC core
+                if old_idx < len(npc_cores):
+                    npc_cores[old_idx]['status_effects'] = []
+
                 npc_team['active_core_index'] = new_index
                 battle.rewards['npc_team'] = npc_team
                 battle.save(update_fields=['rewards'])
@@ -414,6 +709,80 @@ def execute_gain_resource(battle: Battle, team_side: str) -> dict:
         result['pools'] = pools
 
     return result
+
+
+def process_turn_effects(battle: Battle) -> list:
+    """
+    Process status effects at the start of a new turn for both sides.
+    Ticks durations, applies regen, removes expired effects.
+
+    Returns:
+        List of effect event dicts for the frontend (heals, expirations).
+    """
+    from battle.services import status_effects
+
+    events = []
+
+    # Player side
+    player_team = battle.teams.first()
+    if player_team:
+        active_state = player_team.core_states.filter(
+            position=player_team.active_core_index
+        ).first()
+        if active_state and active_state.status_effects:
+            effects = list(active_state.status_effects)
+            effects, heal_amt, expired = status_effects.process_turn_start_effects(
+                effects, active_state.max_hp
+            )
+            if heal_amt > 0:
+                active_state.current_hp = min(active_state.max_hp, active_state.current_hp + heal_amt)
+                events.append({
+                    'team': 'player',
+                    'core_name': active_state.core.name,
+                    'type': 'heal',
+                    'amount': heal_amt,
+                })
+            for name in expired:
+                events.append({
+                    'team': 'player',
+                    'core_name': active_state.core.name,
+                    'type': 'effect_expired',
+                    'effect_name': name,
+                })
+            active_state.status_effects = effects
+            active_state.save()
+
+    # NPC side
+    npc_team = battle.rewards.get('npc_team', {})
+    npc_active_idx = npc_team.get('active_core_index', 0)
+    npc_cores = npc_team.get('cores', [])
+    if npc_cores and npc_active_idx < len(npc_cores):
+        npc_core = npc_cores[npc_active_idx]
+        npc_effects = npc_core.get('status_effects', [])
+        if npc_effects:
+            npc_effects, heal_amt, expired = status_effects.process_turn_start_effects(
+                npc_effects, npc_core.get('max_hp', 100)
+            )
+            if heal_amt > 0:
+                npc_core['current_hp'] = min(npc_core['max_hp'], npc_core['current_hp'] + heal_amt)
+                events.append({
+                    'team': 'enemy',
+                    'core_name': npc_core['name'],
+                    'type': 'heal',
+                    'amount': heal_amt,
+                })
+            for name in expired:
+                events.append({
+                    'team': 'enemy',
+                    'core_name': npc_core['name'],
+                    'type': 'effect_expired',
+                    'effect_name': name,
+                })
+            npc_core['status_effects'] = npc_effects
+            battle.rewards['npc_team'] = npc_team
+            battle.save(update_fields=['rewards'])
+
+    return events
 
 
 def calculate_damage(attacker_stats: dict, defender_stats: dict, move: dict, attacker_level: int = 5) -> dict:
@@ -514,6 +883,7 @@ def serialize_battle_state(battle: Battle) -> dict:
                 'current_hp': state.current_hp,
                 'max_hp': state.max_hp,
                 'is_knocked_out': state.is_knocked_out,
+                'status_effects': state.status_effects or [],
                 'stats': {
                     'hp': core.battle_info.hp,
                     'physical': core.battle_info.physical,

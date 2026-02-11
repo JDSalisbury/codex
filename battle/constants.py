@@ -129,3 +129,115 @@ THREE_D8_MAX = 24
 THREE_D8_MEAN = 13.5
 THREE_D8_PERCENTILES = {10: 7, 25: 10, 50: 13, 75: 17, 90: 19, 95: 21}
 EXPECTED_INCOME_PER_POOL = {3: 6.75, 2: 4.5, 1: 2.25}  # cores alive → avg per resource action
+
+# ──────────────────────────────────────────────
+# Status Effect Definitions
+# ──────────────────────────────────────────────
+# Maps move name -> effect definition applied when the move is used.
+# "target": "self" applies to the user, "enemy" applies to the opponent.
+# "apply_chance": probability the effect lands (1.0 = guaranteed).
+# "turns_remaining": how many turns it lasts (None = instant).
+MOVE_EFFECT_MAP = {
+    "Guard Stance": {
+        "effect_type": "guard",
+        "target": "self",
+        "turns_remaining": 1,
+        "value": 0.5,
+        "apply_chance": 1.0,
+        "message": "raised its guard!",
+    },
+    "Quick Dodge": {
+        "effect_type": "dodge",
+        "target": "self",
+        "turns_remaining": 1,
+        "value": 1.0,
+        "apply_chance": 1.0,
+        "message": "is ready to evade!",
+    },
+    "Shield Wall": {
+        "effect_type": "shield_wall",
+        "target": "self",
+        "turns_remaining": 2,
+        "value": 0.3,
+        "apply_chance": 1.0,
+        "message": "projected a shield wall!",
+    },
+    "Tactical Retreat": {
+        "effect_type": "tactical_retreat",
+        "target": "self",
+        "turns_remaining": None,
+        "value": 0.25,
+        "apply_chance": 1.0,
+        "message": "is preparing a tactical retreat!",
+    },
+    "Aegis Protocol": {
+        "effect_type": "aegis",
+        "target": "self",
+        "turns_remaining": 2,
+        "value": 0.5,
+        "apply_chance": 1.0,
+        "message": "activated Aegis Protocol!",
+    },
+    "Neural Hack": {
+        "effect_type": "accuracy_down",
+        "target": "enemy",
+        "turns_remaining": 2,
+        "value": 0.3,
+        "apply_chance": 0.75,
+        "message": "disrupted enemy targeting systems!",
+    },
+    "Time Dilation Field": {
+        "effect_type": "time_dilation",
+        "target": "self",
+        "turns_remaining": 1,
+        "value": 1.0,
+        "apply_chance": 1.0,
+        "message": "warped local time!",
+    },
+    "Absolute Zero": {
+        "effect_type": "stun",
+        "target": "enemy",
+        "turns_remaining": 1,
+        "value": 1.0,
+        "apply_chance": 0.60,
+        "message": "froze all enemy systems!",
+    },
+    "Nano Repair": {
+        "effect_type": "heal",
+        "target": "self",
+        "turns_remaining": None,
+        "value": 0.25,
+        "apply_chance": 1.0,
+        "message": "deployed repair nanobots!",
+    },
+    "Regeneration": {
+        "effect_type": "regen",
+        "target": "self",
+        "turns_remaining": 3,
+        "value": 0.10,
+        "apply_chance": 1.0,
+        "message": "activated regeneration!",
+    },
+    "Armor Plating": {
+        "effect_type": "armor",
+        "target": "self",
+        "turns_remaining": 2,
+        "value": 0.5,
+        "apply_chance": 1.0,
+        "message": "deployed reinforced plating!",
+    },
+    "System Override": {
+        "effect_type": "confusion",
+        "target": "enemy",
+        "turns_remaining": 2,
+        "value": 0.3,
+        "apply_chance": 0.80,
+        "message": "hacked enemy targeting!",
+    },
+}
+
+# Effect types that are considered defensive buffs
+DEFENSIVE_EFFECTS = {'guard', 'shield_wall', 'aegis', 'armor', 'dodge', 'time_dilation'}
+
+# Effect types that are debuffs on the enemy
+DEBUFF_EFFECTS = {'accuracy_down', 'stun', 'confusion'}

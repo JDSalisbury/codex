@@ -264,6 +264,16 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
         battle.current_turn += 1
         await self.save_battle(battle)
 
+        # Process status effects at turn start (turn 2+)
+        effect_events = []
+        if battle.current_turn > 1:
+            effect_events = await self.process_turn_effects(battle)
+            if effect_events:
+                await self.send_json({
+                    'type': 'effect_tick',
+                    'events': effect_events,
+                })
+
         if battle.current_turn == 1:
             # Turn 1: Free resource round — roll dice for both teams
             player_dice = await self.roll_dice(battle, 'player')
@@ -453,6 +463,10 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def allocate_dice(self, battle, team_side, allocations):
         return battle_engine.allocate_dice(battle, team_side, allocations)
+
+    @database_sync_to_async
+    def process_turn_effects(self, battle):
+        return battle_engine.process_turn_effects(battle)
 
     @database_sync_to_async
     def finalize_battle(self, battle, winner_side):

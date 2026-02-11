@@ -9,6 +9,87 @@ const TurnLog = ({ entries = [] }) => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [entries]);
 
+  const renderMoveAction = (action) => {
+    if (action.action_type === 'move') {
+      // Stunned
+      if (action.stunned) {
+        return <span className="status-msg stunned">is stunned and can't move!</span>;
+      }
+      // Confused self-hit
+      if (action.confused_self_hit) {
+        return (
+          <>
+            <span className="status-msg confused">hit itself in confusion!</span>
+            <span className="damage">-{action.damage_dealt} HP</span>
+          </>
+        );
+      }
+      // Status effect move (non-damage)
+      if (action.effect_applied) {
+        return (
+          <>
+            <span className="action-verb">used</span>
+            <span className="move-name">{action.move_name}</span>
+            {action.effect_message && (
+              <span className="effect-msg">{action.effect_message.replace(action.source_core + ' ', '')}</span>
+            )}
+            {action.heal_amount > 0 && (
+              <span className="heal-amount">+{action.heal_amount} HP</span>
+            )}
+            {action.stab && <span className="stab-indicator">STAB</span>}
+          </>
+        );
+      }
+      // Dodged
+      if (action.dodged_by) {
+        return (
+          <>
+            <span className="action-verb">used</span>
+            <span className="move-name">{action.move_name}</span>
+            <span className="action-verb">on</span>
+            <span className="target">{action.target_core}</span>
+            <span className="miss">DODGED! ({action.dodged_by})</span>
+          </>
+        );
+      }
+      // Normal attack
+      return (
+        <>
+          <span className="action-verb">used</span>
+          <span className="move-name">{action.move_name}</span>
+          {action.accuracy_check ? (
+            <>
+              <span className="action-verb">on</span>
+              <span className="target">{action.target_core}</span>
+              <span className={`damage ${action.was_critical ? 'critical' : ''}`}>
+                -{action.damage_dealt} HP
+                {action.was_critical && ' CRIT!'}
+                {action.stab && ' STAB'}
+              </span>
+            </>
+          ) : (
+            <span className="miss">MISSED!</span>
+          )}
+        </>
+      );
+    }
+
+    if (action.action_type === 'switch') {
+      return (
+        <>
+          <span className="action-verb">switched to</span>
+          <span className="target">{action.new_active_core}</span>
+        </>
+      );
+    }
+
+    if (action.action_type === 'gain_resource') {
+      return <span className="action-verb gain-resource">gained resources</span>;
+    }
+
+    return <span className="action-verb">passed</span>;
+  };
+
   const renderEntry = (entry, index) => {
     switch (entry.type) {
       case 'turn_start':
@@ -24,68 +105,36 @@ const TurnLog = ({ entries = [] }) => {
             {entry.player && entry.player.success && (
               <div className="action-line player">
                 <span className="actor">{entry.player.source_core}</span>
-                {entry.player.action_type === 'move' ? (
-                  <>
-                    <span className="action-verb">used</span>
-                    <span className="move-name">{entry.player.move_name}</span>
-                    {entry.player.accuracy_check ? (
-                      <>
-                        <span className="action-verb">on</span>
-                        <span className="target">{entry.player.target_core}</span>
-                        <span className={`damage ${entry.player.was_critical ? 'critical' : ''}`}>
-                          -{entry.player.damage_dealt} HP
-                          {entry.player.was_critical && ' CRIT!'}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="miss">MISSED!</span>
-                    )}
-                  </>
-                ) : entry.player.action_type === 'switch' ? (
-                  <>
-                    <span className="action-verb">switched to</span>
-                    <span className="target">{entry.player.new_active_core}</span>
-                  </>
-                ) : entry.player.action_type === 'gain_resource' ? (
-                  <span className="action-verb gain-resource">gained resources</span>
-                ) : (
-                  <span className="action-verb">passed</span>
-                )}
+                {renderMoveAction(entry.player)}
               </div>
             )}
 
             {entry.enemy && entry.enemy.success && (
               <div className="action-line enemy">
                 <span className="actor">{entry.enemy.source_core}</span>
-                {entry.enemy.action_type === 'move' ? (
-                  <>
-                    <span className="action-verb">used</span>
-                    <span className="move-name">{entry.enemy.move_name}</span>
-                    {entry.enemy.accuracy_check ? (
-                      <>
-                        <span className="action-verb">on</span>
-                        <span className="target">{entry.enemy.target_core}</span>
-                        <span className={`damage ${entry.enemy.was_critical ? 'critical' : ''}`}>
-                          -{entry.enemy.damage_dealt} HP
-                          {entry.enemy.was_critical && ' CRIT!'}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="miss">MISSED!</span>
-                    )}
-                  </>
-                ) : entry.enemy.action_type === 'switch' ? (
-                  <>
-                    <span className="action-verb">switched to</span>
-                    <span className="target">{entry.enemy.new_active_core}</span>
-                  </>
-                ) : entry.enemy.action_type === 'gain_resource' ? (
-                  <span className="action-verb gain-resource">gained resources</span>
-                ) : (
-                  <span className="action-verb">passed</span>
-                )}
+                {renderMoveAction(entry.enemy)}
               </div>
             )}
+          </div>
+        );
+
+      case 'effect_tick':
+        return (
+          <div key={index} className="log-entry effect-tick">
+            {(entry.events || []).map((evt, i) => (
+              <div key={i} className={`effect-event ${evt.team}`}>
+                {evt.type === 'heal' && (
+                  <span className="heal-tick">
+                    {evt.core_name} regenerated <span className="heal-amount">+{evt.amount} HP</span>
+                  </span>
+                )}
+                {evt.type === 'effect_expired' && (
+                  <span className="effect-expired">
+                    {evt.core_name}'s {evt.effect_name} wore off
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         );
 

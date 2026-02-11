@@ -15,6 +15,7 @@ import {
   setActionRejected,
   setKoSwitchPrompt,
   setForcedSwitch,
+  setEffectTick,
   setBattleEnd,
   setError,
   resetBattle,
@@ -79,31 +80,46 @@ const Battle = () => {
   // Trigger animations based on action results
   useEffect(() => {
     if (lastPlayerAction && lastPlayerAction.action_type === 'move' && lastPlayerAction.success) {
-      // Player attacked enemy
-      if (lastPlayerAction.accuracy_check) {
-        // Hit - shake the enemy
+      if (lastPlayerAction.effect_applied) {
+        // Status effect move — buff on self or debuff on enemy
+        const isSelfBuff = !lastPlayerAction.target_core || lastPlayerAction.target_core === lastPlayerAction.source_core;
+        if (isSelfBuff) {
+          setPlayerAnimation('buff');
+        } else {
+          setEnemyAnimation('debuff');
+        }
+      } else if (lastPlayerAction.stunned || lastPlayerAction.confused_self_hit) {
+        setPlayerAnimation('debuff');
+      } else if (lastPlayerAction.dodged_by) {
+        setEnemyAnimation(Math.random() > 0.5 ? 'miss-left' : 'miss-right');
+      } else if (lastPlayerAction.accuracy_check) {
         setEnemyAnimation(lastPlayerAction.was_critical ? 'crit' : 'hit');
       } else {
-        // Miss - enemy dodges
         setEnemyAnimation(Math.random() > 0.5 ? 'miss-left' : 'miss-right');
       }
-      // Clear animation after it plays
-      setTimeout(() => setEnemyAnimation(null), 500);
+      setTimeout(() => { setEnemyAnimation(null); setPlayerAnimation(null); }, 500);
     }
   }, [lastPlayerAction]);
 
   useEffect(() => {
     if (lastEnemyAction && lastEnemyAction.action_type === 'move' && lastEnemyAction.success) {
-      // Enemy attacked player
-      if (lastEnemyAction.accuracy_check) {
-        // Hit - shake the player
+      if (lastEnemyAction.effect_applied) {
+        const isSelfBuff = !lastEnemyAction.target_core || lastEnemyAction.target_core === lastEnemyAction.source_core;
+        if (isSelfBuff) {
+          setEnemyAnimation('buff');
+        } else {
+          setPlayerAnimation('debuff');
+        }
+      } else if (lastEnemyAction.stunned || lastEnemyAction.confused_self_hit) {
+        setEnemyAnimation('debuff');
+      } else if (lastEnemyAction.dodged_by) {
+        setPlayerAnimation(Math.random() > 0.5 ? 'miss-left' : 'miss-right');
+      } else if (lastEnemyAction.accuracy_check) {
         setPlayerAnimation(lastEnemyAction.was_critical ? 'crit' : 'hit');
       } else {
-        // Miss - player dodges
         setPlayerAnimation(Math.random() > 0.5 ? 'miss-left' : 'miss-right');
       }
-      // Clear animation after it plays
-      setTimeout(() => setPlayerAnimation(null), 500);
+      setTimeout(() => { setPlayerAnimation(null); setEnemyAnimation(null); }, 500);
     }
   }, [lastEnemyAction]);
 
@@ -120,6 +136,7 @@ const Battle = () => {
         setActionRejected,
         setKoSwitchPrompt,
         setForcedSwitch,
+        setEffectTick,
         setBattleEnd,
         setError,
       };

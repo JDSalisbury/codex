@@ -11,7 +11,7 @@ from battle.models import Battle
 
 def choose_npc_action(battle: Battle) -> dict:
     """
-    Choose an action for the NPC.
+    Choose an action for the NPC with status-effect-aware logic.
 
     Returns:
         {
@@ -20,6 +20,8 @@ def choose_npc_action(battle: Battle) -> dict:
             'new_core_index': int if action_type == 'switch',
         }
     """
+    from battle.constants import DEFENSIVE_EFFECTS
+
     npc_team = battle.rewards.get('npc_team', {})
     active_idx = npc_team.get('active_core_index', 0)
     cores = npc_team.get('cores', [])
@@ -44,8 +46,7 @@ def choose_npc_action(battle: Battle) -> dict:
     available_moves = get_affordable_moves(active_core, npc_team)
 
     if available_moves:
-        # Random move selection (MVP AI)
-        chosen_move = random.choice(available_moves)
+        chosen_move = _pick_smart_move(active_core, available_moves, battle)
         return {
             'action_type': 'move',
             'move': chosen_move,
@@ -53,6 +54,41 @@ def choose_npc_action(battle: Battle) -> dict:
     else:
         # No affordable moves - gain resources instead of passing
         return {'action_type': 'gain_resource'}
+
+
+def _pick_smart_move(active_core: dict, available_moves: list, battle: Battle) -> dict:
+    """
+    Pick a move with basic tactical awareness:
+    - Prefer defensive moves when HP is low
+    - Prefer attack moves when enemy has no guard effects
+    - Don't use guard if already guarding
+    """
+    from battle.constants import DEFENSIVE_EFFECTS, MOVE_EFFECT_MAP
+
+    hp_ratio = active_core.get('current_hp', 0) / max(1, active_core.get('max_hp', 1))
+    own_effects = {e['effect_type'] for e in active_core.get('status_effects', [])}
+
+    attack_moves = [m for m in available_moves if m.get('type') == 'Attack']
+    status_moves = [m for m in available_moves if m.get('type') != 'Attack']
+
+    # Filter out status moves we already have active
+    usable_status = []
+    for m in status_moves:
+        effect_def = MOVE_EFFECT_MAP.get(m['name'])
+        if effect_def and effect_def['effect_type'] in own_effects:
+            continue  # Already have this effect active
+        usable_status.append(m)
+
+    # Low HP: 60% chance to pick a defensive/support move if available
+    if hp_ratio < 0.4 and usable_status and random.random() < 0.6:
+        return random.choice(usable_status)
+
+    # High HP + have attacks: 80% chance to attack
+    if hp_ratio > 0.6 and attack_moves and random.random() < 0.8:
+        return random.choice(attack_moves)
+
+    # Default: random from all available
+    return random.choice(available_moves)
 
 
 def get_affordable_moves(core: dict, team_state: dict) -> list[dict]:

@@ -211,6 +211,32 @@ const battleSlice = createSlice({
       });
     },
 
+    // Status effect tick events (regen, expirations)
+    setEffectTick: (state, action) => {
+      const { events } = action.payload;
+
+      // Update HP from heal events
+      for (const evt of events || []) {
+        if (evt.type === 'heal') {
+          if (evt.team === 'player' && state.playerTeam) {
+            const core = state.playerTeam.cores.find(c => c.name === evt.core_name);
+            if (core) core.current_hp = Math.min(core.max_hp, core.current_hp + evt.amount);
+          } else if (evt.team === 'enemy' && state.enemyTeam) {
+            const core = state.enemyTeam.cores.find(c => c.name === evt.core_name);
+            if (core) core.current_hp = Math.min(core.max_hp, core.current_hp + evt.amount);
+          }
+        }
+      }
+
+      if (events && events.length > 0) {
+        state.turnLog.push({
+          type: 'effect_tick',
+          events,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    },
+
     // Error handling
     setError: (state, action) => {
       state.error = action.payload;
@@ -253,6 +279,7 @@ export const {
   setActionRejected,
   setKoSwitchPrompt,
   setForcedSwitch,
+  setEffectTick,
   setBattleEnd,
   setError,
   clearError,

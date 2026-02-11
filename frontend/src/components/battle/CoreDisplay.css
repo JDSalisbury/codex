@@ -370,3 +370,28 @@
   50% { transform: rotateX(4deg) translateX(-20px) scale(1.08); }
   100% { transform: rotateX(8deg) scale(1); }
 }
+
+/* Buff Animation - Glow up */
+.core-sprite-standing.anim-buff {
+  animation: buffGlow 0.5s ease-in-out;
+}
+
+@keyframes buffGlow {
+  0% { filter: brightness(1); }
+  30% { filter: brightness(1.6) drop-shadow(0 0 10px rgba(0, 200, 255, 0.8)); transform: rotateX(8deg) scale(1.05); }
+  60% { filter: brightness(1.3) drop-shadow(0 0 6px rgba(0, 200, 255, 0.4)); transform: rotateX(8deg) scale(1.02); }
+  100% { filter: brightness(1); transform: rotateX(8deg) scale(1); }
+}
+
+/* Debuff Animation - Flash red */
+.core-sprite-standing.anim-debuff {
+  animation: debuffFlash 0.5s ease-in-out;
+}
+
+@keyframes debuffFlash {
+  0% { filter: brightness(1); }
+  20% { filter: brightness(0.6) sepia(1) saturate(3) hue-rotate(-30deg); transform: rotateX(8deg) scale(0.97); }
+  40% { filter: brightness(1); transform: rotateX(8deg) scale(1); }
+  60% { filter: brightness(0.7) sepia(1) saturate(2) hue-rotate(-30deg); transform: rotateX(8deg) scale(0.98); }
+  100% { filter: brightness(1); transform: rotateX(8deg) scale(1); }
+}

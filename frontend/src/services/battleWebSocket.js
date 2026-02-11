@@ -169,6 +169,10 @@ class BattleWebSocketService {
         dispatch(actions.setForcedSwitch(data));
         break;
 
+      case 'effect_tick':
+        dispatch(actions.setEffectTick(data));
+        break;
+
       case 'battle_end':
         dispatch(actions.setBattleEnd(data));
         break;

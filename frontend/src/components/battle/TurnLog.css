@@ -142,6 +142,65 @@
   text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
 }
 
+/* Status effect styles */
+.effect-msg {
+  color: #66ccff;
+  font-style: italic;
+}
+
+.heal-amount {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.stab-indicator {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.7rem;
+  background: rgba(255, 215, 0, 0.2);
+  padding: 0 4px;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+
+.status-msg {
+  font-style: italic;
+}
+
+.status-msg.stunned {
+  color: #ffaa00;
+}
+
+.status-msg.confused {
+  color: #cc66ff;
+}
+
+.log-entry.effect-tick {
+  padding: 0.15rem 0;
+}
+
+.effect-event {
+  font-size: 0.75rem;
+  padding: 0.1rem 0;
+}
+
+.effect-event.player {
+  color: #00cccc;
+}
+
+.effect-event.enemy {
+  color: #cc5555;
+}
+
+.heal-tick {
+  color: #44cc88;
+}
+
+.effect-expired {
+  color: #888;
+  font-style: italic;
+}
+
 /* Scrollbar styling */
 .log-content::-webkit-scrollbar {
   width: 6px;
