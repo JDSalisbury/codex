@@ -115,7 +115,7 @@ MAX_ACCURACY = 1.0
 MIN_DAMAGE = 1  # Minimum damage dealt (prevents 0 damage)
 
 # Damage Formula Constants (Pokémon-inspired)
-DAMAGE_STAT_SMOOTHING = 5       # added to atk and def to prevent division extremes
+DAMAGE_STAT_SMOOTHING = 15      # added to atk and def to compress stat ratios toward 1.0
 DAMAGE_DIVISOR = 3              # calibrated for CoDEX stat ranges (Pokémon uses 50)
 DAMAGE_FLAT_BONUS = 2           # minimum damage floor on hit
 DAMAGE_VARIANCE_MIN = 0.85      # random roll lower bound
