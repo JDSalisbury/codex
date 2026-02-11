@@ -38,7 +38,7 @@ def generate_core(garage: Garage, req: CoreGenRequest) -> Core:
     base_physical = random.randint(8, 16)
     base_energy = random.randint(8, 16)
     base_def = random.randint(8, 16)
-    base_shield = random.randint(0, 20)
+    base_shield = random.randint(4, 16)
     base_speed = random.randint(6, 14)
 
     # Apply track boosts to base stats
