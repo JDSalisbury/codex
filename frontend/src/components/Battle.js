@@ -13,6 +13,7 @@ import {
   setSelectedMove,
   setActionResult,
   setActionRejected,
+  setKoSwitchPrompt,
   setForcedSwitch,
   setBattleEnd,
   setError,
@@ -33,6 +34,8 @@ import {
   selectNpcName,
   selectLastPlayerAction,
   selectLastEnemyAction,
+  selectKoSwitchRequired,
+  selectKoSwitchOptions,
 } from '../store/slices/battleSlice';
 
 import CoreDisplay from './battle/CoreDisplay';
@@ -65,8 +68,11 @@ const Battle = () => {
   const npcName = useSelector(selectNpcName);
   const lastPlayerAction = useSelector(selectLastPlayerAction);
   const lastEnemyAction = useSelector(selectLastEnemyAction);
+  const koSwitchRequired = useSelector(selectKoSwitchRequired);
+  const koSwitchOptions = useSelector(selectKoSwitchOptions);
 
   const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [expandedSwitchIdx, setExpandedSwitchIdx] = useState(null);
   const [playerAnimation, setPlayerAnimation] = useState(null);
   const [enemyAnimation, setEnemyAnimation] = useState(null);
 
@@ -112,6 +118,7 @@ const Battle = () => {
         setDiceAllocated,
         setActionResult,
         setActionRejected,
+        setKoSwitchPrompt,
         setForcedSwitch,
         setBattleEnd,
         setError,
@@ -132,8 +139,16 @@ const Battle = () => {
     battleWebSocket.sendAction('move', { move_id: move.id });
   };
 
+  // Reset expanded state when KO switch modal opens
+  useEffect(() => {
+    if (koSwitchRequired) {
+      setExpandedSwitchIdx(null);
+    }
+  }, [koSwitchRequired]);
+
   // Handle switch
   const handleSwitch = () => {
+    setExpandedSwitchIdx(null);
     setShowSwitchModal(true);
   };
 
@@ -152,6 +167,11 @@ const Battle = () => {
     battleWebSocket.sendAction('gain_resource', {});
   };
 
+  // Handle KO switch choice
+  const handleKoSwitchConfirm = (coreIndex) => {
+    battleWebSocket.sendKoSwitchChoice(coreIndex);
+  };
+
   // Handle dice allocation
   const handleDiceAllocate = (allocations) => {
     battleWebSocket.sendDiceAllocation(allocations);
@@ -160,6 +180,87 @@ const Battle = () => {
   // Handle result modal close
   const handleResultClose = () => {
     dispatch(resetBattle());
+  };
+
+  // Render a core option in switch modals (voluntary + KO)
+  const renderCoreOption = (core, idx, { isKo, isCurrent, onSelect, disabled }) => {
+    const isExpanded = expandedSwitchIdx === idx;
+    const stats = core.stats || {};
+    const moves = core.equipped_moves || [];
+
+    const toggleExpand = (e) => {
+      e.stopPropagation();
+      setExpandedSwitchIdx(isExpanded ? null : idx);
+    };
+
+    return (
+      <div
+        key={core.id || idx}
+        className={`switch-option ${isKo ? 'ko' : ''} ${isCurrent ? 'current' : ''} ${isExpanded ? 'expanded' : ''}`}
+      >
+        <div
+          className="switch-option-header"
+          onClick={disabled ? toggleExpand : () => onSelect(idx)}
+        >
+          <span className="switch-core-name">{core.name}</span>
+          <div className="switch-option-badges">
+            {core.rarity && (
+              <span className={`switch-badge rarity-${core.rarity.toLowerCase()}`}>
+                {core.rarity}
+              </span>
+            )}
+            {core.lvl != null && (
+              <span className="switch-badge switch-badge-level">Lv.{core.lvl}</span>
+            )}
+            {core.type && (
+              <span className="switch-badge switch-badge-type">{core.type}</span>
+            )}
+          </div>
+          <span className="switch-core-hp">
+            {core.current_hp}/{core.max_hp} HP
+          </span>
+          <button
+            className={`switch-option-chevron ${isExpanded ? 'open' : ''}`}
+            onClick={toggleExpand}
+            tabIndex={-1}
+          >
+            ▼
+          </button>
+        </div>
+        <div className={`switch-option-details ${isExpanded ? 'visible' : ''}`}>
+          <div className="switch-stat-grid">
+            {[
+              ['PHY', stats.physical],
+              ['ENE', stats.energy],
+              ['DEF', stats.defense],
+              ['SHD', stats.shield],
+              ['SPD', stats.speed],
+            ].map(([label, value]) => (
+              <div className="switch-stat-item" key={label}>
+                <span className="switch-stat-label">{label}</span>
+                <span className="switch-stat-value">{value ?? '—'}</span>
+              </div>
+            ))}
+          </div>
+          <div className="switch-moves-list">
+            {moves.length > 0 ? (
+              moves.map((move, mIdx) => (
+                <span className="switch-move-tag" key={move.id || mIdx}>
+                  {move.name}
+                  {move.damage_type && (
+                    <span className={`switch-move-type ${move.damage_type.toLowerCase()}`}>
+                      {move.damage_type.substring(0, 3)}
+                    </span>
+                  )}
+                </span>
+              ))
+            ) : (
+              <span className="switch-moves-empty">No moves equipped</span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Render loading state
@@ -292,6 +393,12 @@ const Battle = () => {
                 </div>
               )}
 
+              {phase === 'ko_switch' && (
+                <div className="resolution-panel">
+                  <div className="resolution-message">Select a replacement Core...</div>
+                </div>
+              )}
+
               {phase === 'waiting' && (
                 <div className="waiting-panel">
                   <div className="waiting-message">Waiting...</div>
@@ -313,23 +420,41 @@ const Battle = () => {
           <div className="switch-modal" onClick={(e) => e.stopPropagation()}>
             <h3>SWITCH CORE</h3>
             <div className="switch-options">
-              {playerTeam?.cores?.map((core, idx) => (
-                <button
-                  key={core.id}
-                  className={`switch-option ${core.is_knocked_out ? 'ko' : ''} ${idx === playerTeam.active_core_index ? 'current' : ''}`}
-                  onClick={() => handleSwitchConfirm(idx)}
-                  disabled={core.is_knocked_out || idx === playerTeam.active_core_index}
-                >
-                  <span className="switch-core-name">{core.name}</span>
-                  <span className="switch-core-hp">
-                    {core.current_hp}/{core.max_hp} HP
-                  </span>
-                </button>
-              ))}
+              {playerTeam?.cores?.map((core, idx) => {
+                const isKo = core.is_knocked_out;
+                const isCurrent = idx === playerTeam.active_core_index;
+                return renderCoreOption(core, idx, {
+                  isKo,
+                  isCurrent,
+                  onSelect: handleSwitchConfirm,
+                  disabled: isKo || isCurrent,
+                });
+              })}
             </div>
             <button className="cancel-btn" onClick={() => setShowSwitchModal(false)}>
               CANCEL
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* KO Switch Modal — mandatory, no cancel */}
+      {koSwitchRequired && (
+        <div className="switch-modal-overlay">
+          <div className="switch-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>CORE KO'D — CHOOSE REPLACEMENT</h3>
+            <div className="switch-options">
+              {koSwitchOptions.map((opt) => {
+                const fullCore = playerTeam?.cores?.[opt.index];
+                const core = fullCore || opt;
+                return renderCoreOption(core, opt.index, {
+                  isKo: false,
+                  isCurrent: false,
+                  onSelect: handleKoSwitchConfirm,
+                  disabled: false,
+                });
+              })}
+            </div>
           </div>
         </div>
       )}

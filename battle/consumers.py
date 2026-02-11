@@ -52,6 +52,7 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             'action': self.handle_player_action,
             'dice_allocation': self.handle_dice_allocation,
             'reconnect': self.handle_reconnect,
+            'ko_switch_choice': self.handle_ko_switch_choice,
         }
 
         handler = handlers.get(message_type)
@@ -100,6 +101,14 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
                 'type': 'battle_state',
                 **state,
             })
+
+            # Re-send KO switch prompt if one was pending
+            if battle.rewards.get('pending_ko_switch'):
+                available_cores = await self.get_alive_cores(battle)
+                await self.send_json({
+                    'type': 'ko_switch_prompt',
+                    'available_cores': available_cores,
+                })
 
     async def handle_player_action(self, data):
         """Process player action (move/switch/pass/gain_resource)."""
@@ -217,7 +226,7 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
         battle = await self.get_battle()
 
         # Check for KO'd active cores and handle mandatory switches
-        await self.handle_ko_switches(battle)
+        waiting_for_player = await self.handle_ko_switches(battle)
 
         # Check for battle end
         player_defeated = await self.check_team_defeated(battle, 'player')
@@ -237,6 +246,10 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             'enemy_action': npc_result,
             'battle_state': state,
         })
+
+        # If waiting for player KO switch choice, don't start next turn yet
+        if waiting_for_player:
+            return
 
         # Start next turn
         await self.start_turn()
@@ -278,15 +291,32 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
             })
 
     async def handle_ko_switches(self, battle):
-        """Handle mandatory switches when active core is KO'd."""
+        """Handle mandatory switches when active core is KO'd.
+
+        Returns True if waiting for player to choose a replacement core.
+        """
+        waiting_for_player = False
+
         # Check player
         player_team = await self.get_player_team(battle)
         if player_team:
             active_state = await self.get_active_core_state(player_team)
             if active_state and active_state.is_knocked_out:
-                # Find next alive core
-                alive_idx = await self.find_alive_core_index(player_team)
-                if alive_idx is not None:
+                available_cores = await self.get_alive_cores(battle)
+                if len(available_cores) >= 2:
+                    # Multiple choices — prompt the player
+                    battle = await self.get_battle()
+                    battle.rewards['pending_ko_switch'] = True
+                    await self.save_battle_rewards(battle)
+
+                    await self.send_json({
+                        'type': 'ko_switch_prompt',
+                        'available_cores': available_cores,
+                    })
+                    waiting_for_player = True
+                elif len(available_cores) == 1:
+                    # Only one option — auto-switch
+                    alive_idx = available_cores[0]['index']
                     await self.execute_action(battle, 'player', 'switch', {'new_core_index': alive_idx})
                     await self.send_json({
                         'type': 'forced_switch',
@@ -294,7 +324,8 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
                         'new_core_index': alive_idx,
                     })
 
-        # Check NPC
+        # Check NPC (always auto-switch)
+        battle = await self.get_battle()
         npc_team = battle.rewards.get('npc_team', {})
         active_idx = npc_team.get('active_core_index', 0)
         cores = npc_team.get('cores', [])
@@ -308,6 +339,57 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
                         'team': 'enemy',
                         'new_core_index': alive_idx,
                     })
+
+        return waiting_for_player
+
+    async def handle_ko_switch_choice(self, data):
+        """Handle player's choice of replacement core after a KO."""
+        new_core_index = data.get('new_core_index')
+
+        battle = await self.get_battle()
+        if not battle or battle.status != 'ACTIVE':
+            await self.send_json({
+                'type': 'error',
+                'message': 'Battle not active',
+            })
+            return
+
+        if not battle.rewards.get('pending_ko_switch'):
+            await self.send_json({
+                'type': 'error',
+                'message': 'No pending KO switch',
+            })
+            return
+
+        # Validate the chosen core
+        available_cores = await self.get_alive_cores(battle)
+        valid_indices = [c['index'] for c in available_cores]
+
+        if new_core_index not in valid_indices:
+            await self.send_json({
+                'type': 'ko_switch_prompt',
+                'available_cores': available_cores,
+                'error': 'Invalid core selection. Choose an alive, non-active core.',
+            })
+            return
+
+        # Execute the switch
+        await self.execute_action(battle, 'player', 'switch', {'new_core_index': new_core_index})
+
+        # Clear the pending flag
+        battle = await self.get_battle()
+        del battle.rewards['pending_ko_switch']
+        await self.save_battle_rewards(battle)
+
+        # Send forced_switch confirmation
+        await self.send_json({
+            'type': 'forced_switch',
+            'team': 'player',
+            'new_core_index': new_core_index,
+        })
+
+        # Start next turn
+        await self.start_turn()
 
     async def end_battle(self, battle, winner_side):
         """End the battle and send results."""
@@ -397,6 +479,27 @@ class BattleConsumer(AsyncJsonWebsocketConsumer):
         for state in team.core_states.filter(is_knocked_out=False):
             return state.position
         return None
+
+    @database_sync_to_async
+    def get_alive_cores(self, battle):
+        """Get list of alive, non-active cores for the player team."""
+        team = battle.teams.first()
+        if not team:
+            return []
+        alive = team.core_states.filter(
+            is_knocked_out=False
+        ).exclude(
+            position=team.active_core_index
+        ).select_related('core')
+        return [
+            {
+                'index': state.position,
+                'name': state.core.name,
+                'current_hp': state.current_hp,
+                'max_hp': state.max_hp,
+            }
+            for state in alive
+        ]
 
     @database_sync_to_async
     def update_arena_progress_win(self, battle):

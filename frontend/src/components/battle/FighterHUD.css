@@ -251,6 +251,7 @@
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid #00ffff;
   color: #00ffff;
+  align-self: center;
 }
 
 .fighter-hud.enemy .hud-level {
@@ -262,6 +263,7 @@
   background: rgba(0, 255, 255, 0.2);
   border: 1px solid #00ffff;
   color: #00ffff;
+  align-self: anchor-center;
 }
 
 .fighter-hud.enemy .hud-type {

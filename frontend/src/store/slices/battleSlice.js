@@ -33,6 +33,10 @@ const initialState = {
   selectedMove: null,
   connected: false,
 
+  // KO switch prompt
+  koSwitchRequired: false,
+  koSwitchOptions: [],
+
   // Loading states
   loading: false,
   error: null,
@@ -158,12 +162,22 @@ const battleSlice = createSlice({
       state.selectedMove = null;
     },
 
+    // KO switch prompt — player must choose a replacement core
+    setKoSwitchPrompt: (state, action) => {
+      state.koSwitchRequired = true;
+      state.koSwitchOptions = action.payload.available_cores;
+      state.phase = 'ko_switch';
+    },
+
     // Forced switch (KO)
     setForcedSwitch: (state, action) => {
       const { team, new_core_index } = action.payload;
 
       if (team === 'player' && state.playerTeam) {
         state.playerTeam.active_core_index = new_core_index;
+        // Clear KO switch state when player switch is confirmed
+        state.koSwitchRequired = false;
+        state.koSwitchOptions = [];
       } else if (team === 'enemy' && state.enemyTeam) {
         state.enemyTeam.active_core_index = new_core_index;
       }
@@ -237,6 +251,7 @@ export const {
   setSelectedMove,
   setActionResult,
   setActionRejected,
+  setKoSwitchPrompt,
   setForcedSwitch,
   setBattleEnd,
   setError,
@@ -262,6 +277,8 @@ export const selectBattleError = (state) => state.battle.error;
 export const selectLastPlayerAction = (state) => state.battle.lastPlayerAction;
 export const selectLastEnemyAction = (state) => state.battle.lastEnemyAction;
 export const selectNpcName = (state) => state.battle.npcName;
+export const selectKoSwitchRequired = (state) => state.battle.koSwitchRequired;
+export const selectKoSwitchOptions = (state) => state.battle.koSwitchOptions;
 
 // Computed selectors
 export const selectActivePlayerCore = (state) => {

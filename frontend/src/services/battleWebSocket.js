@@ -112,6 +112,17 @@ class BattleWebSocketService {
   }
 
   /**
+   * Send KO switch choice.
+   * @param {number} coreIndex - The index of the core to switch to
+   */
+  sendKoSwitchChoice(coreIndex) {
+    this.send({
+      type: 'ko_switch_choice',
+      new_core_index: coreIndex,
+    });
+  }
+
+  /**
    * Handle incoming websocket messages.
    * @param {MessageEvent} event - The websocket message event
    */
@@ -148,6 +159,10 @@ class BattleWebSocketService {
 
       case 'action_rejected':
         dispatch(actions.setActionRejected(data));
+        break;
+
+      case 'ko_switch_prompt':
+        dispatch(actions.setKoSwitchPrompt(data));
         break;
 
       case 'forced_switch':

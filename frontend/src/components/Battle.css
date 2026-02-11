@@ -310,7 +310,8 @@
   border: 2px solid #9932cc;
   border-radius: 12px;
   padding: 1.5rem;
-  min-width: 300px;
+  min-width: 360px;
+  max-width: 460px;
 }
 
 .switch-modal h3 {
@@ -327,32 +328,31 @@
 }
 
 .switch-option {
-  padding: 0.75rem;
   background: rgba(153, 50, 204, 0.1);
   border: 2px solid #9932cc;
   border-radius: 8px;
-  cursor: pointer;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   transition: all 0.2s ease;
   color: #fff;
 }
 
-.switch-option:hover:not(:disabled) {
+.switch-option:hover:not(.ko):not(.current) {
   background: rgba(153, 50, 204, 0.3);
 }
 
-.switch-option:disabled {
+.switch-option.ko,
+.switch-option.current {
   opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .switch-option.current {
   border-style: dashed;
+  opacity: 0.6;
 }
 
-.switch-option.ko {
+.switch-option.ko .switch-core-name {
   text-decoration: line-through;
 }
 
@@ -364,6 +364,7 @@
 .switch-core-hp {
   color: #aaa;
   font-size: 0.8rem;
+  margin-left: 0.5rem;
 }
 
 .cancel-btn {
@@ -379,6 +380,161 @@
 
 .cancel-btn:hover {
   background: rgba(128, 128, 128, 0.4);
+}
+
+/* Switch Option - Expandable Layout */
+.switch-option.expanded {
+  border-color: #bb66ee;
+  background: rgba(153, 50, 204, 0.15);
+}
+
+.switch-option-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  cursor: pointer;
+}
+
+.switch-option:disabled .switch-option-header {
+  cursor: not-allowed;
+}
+
+.switch-option-badges {
+  display: flex;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.switch-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: bold;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.switch-badge.rarity-common { background: #666; color: #fff; }
+.switch-badge.rarity-uncommon { background: #2e8b57; color: #fff; }
+.switch-badge.rarity-rare { background: #4169e1; color: #fff; }
+.switch-badge.rarity-legendary { background: #9932cc; color: #fff; }
+.switch-badge.rarity-mythic {
+  background: linear-gradient(45deg, #ff6b6b, #ffd93d, #6bcf7f, #4dabf7);
+  color: #000;
+}
+
+.switch-badge-level {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffd700;
+  align-content: center;
+}
+
+.switch-badge-type {
+  background: rgba(0, 255, 255, 0.15);
+  color: #00ffff;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  align-content: center;
+}
+
+.switch-option-chevron {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  transition: transform 0.2s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.switch-option-chevron.open {
+  transform: rotate(180deg);
+}
+
+.switch-option-chevron:hover {
+  color: #fff;
+}
+
+/* Expandable Details Panel */
+.switch-option-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease;
+  padding: 0 0.75rem;
+  border-top: 1px solid transparent;
+}
+
+.switch-option-details.visible {
+  max-height: 200px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-top-color: rgba(153, 50, 204, 0.3);
+}
+
+/* Stat Grid */
+.switch-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.switch-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.switch-stat-label {
+  color: #888;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.switch-stat-value {
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+/* Moves List */
+.switch-moves-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.switch-move-tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: #ccc;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.switch-move-type {
+  font-size: 0.55rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.switch-move-type.energy {
+  color: #00ccff;
+}
+
+.switch-move-type.physical {
+  color: #ff8844;
+}
+
+.switch-moves-empty {
+  color: #666;
+  font-size: 0.7rem;
+  font-style: italic;
 }
 
 /* Responsive - Stack on smaller screens */
