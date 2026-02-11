@@ -18,7 +18,7 @@ class Command(BaseCommand):
                 description="A standard physical attack with reliable damage. Every Core starts with this fundamental technique.",
                 type="Attack",
                 dmg_type="PHYSICAL",
-                dmg=10,
+                dmg=18,
                 accuracy=0.90,
                 resource_cost=3,
                 rarity="Common",
@@ -32,7 +32,7 @@ class Command(BaseCommand):
                 description="Channel raw energy into a focused blast. A staple energy attack for all Cores.",
                 type="Attack",
                 dmg_type="ENERGY",
-                dmg=12,
+                dmg=20,
                 accuracy=0.85,
                 resource_cost=3,
                 rarity="Common",
@@ -385,6 +385,7 @@ class Command(BaseCommand):
         ]
 
         created_count = 0
+        updated_count = 0
         skipped_count = 0
 
         self.stdout.write(
@@ -392,11 +393,32 @@ class Command(BaseCommand):
         )
 
         for move_req in moves_to_create:
-            if Move.objects.filter(name=move_req.name).exists():
-                self.stdout.write(
-                    self.style.WARNING(f'⚠ Skipping existing move: {move_req.name}')
-                )
-                skipped_count += 1
+            existing = Move.objects.filter(name=move_req.name).first()
+            if existing:
+                # Update existing move stats to match seed data
+                changed = False
+                field_map = {
+                    'dmg': 'dmg', 'accuracy': 'accuracy',
+                    'resource_cost': 'resource_cost', 'type': 'type',
+                    'dmg_type': 'dmg_type', 'rarity': 'rarity',
+                    'lvl_learned': 'lvl_learned',
+                }
+                for req_field, model_field in field_map.items():
+                    new_val = getattr(move_req, req_field)
+                    if getattr(existing, model_field) != new_val:
+                        setattr(existing, model_field, new_val)
+                        changed = True
+                if changed:
+                    existing.save()
+                    self.stdout.write(
+                        self.style.WARNING(f'~ Updated existing move: {move_req.name}')
+                    )
+                    updated_count += 1
+                else:
+                    self.stdout.write(
+                        self.style.WARNING(f'- Skipping unchanged move: {move_req.name}')
+                    )
+                    skipped_count += 1
                 continue
 
             try:
@@ -419,7 +441,8 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f'\n✓ Seeding Complete!\n'
                 f'  Created: {created_count} moves\n'
-                f'  Skipped: {skipped_count} existing moves\n'
+                f'  Updated: {updated_count} moves\n'
+                f'  Skipped: {skipped_count} unchanged moves\n'
                 f'  Total in database: {Move.objects.count()} moves\n'
             )
         )

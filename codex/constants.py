@@ -74,7 +74,7 @@ MOVE_TRACK_TYPES = [
 # Stat ranges for procedural move generation
 MOVE_STAT_RANGES = {
     "Common": {
-        "dmg": (5, 15),
+        "dmg": (10, 22),
         "accuracy": (0.75, 0.95),
         "resource_cost": (2, 4)
     },
